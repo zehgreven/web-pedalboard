@@ -1,11 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { usePedalboardStore } from '@/stores/pedalboard'
 import type { EffectDefinition } from '@/types/audio'
-
-defineEmits<{
-  add: [effect: EffectDefinition]
-}>()
 
 const store = usePedalboardStore()
 
@@ -25,12 +21,40 @@ const effects: EffectDefinition[] = [
 ]
 
 const categories = [...new Set(effects.map((e) => e.category))]
-
 const activeTypes = computed(() => new Set(store.nodes.map((n) => n.type)))
+const isDropTarget = ref(false)
+
+function onDragStart(event: DragEvent, effect: EffectDefinition) {
+  event.dataTransfer?.setData('text/plain', `sidebar:${effect.type}`)
+}
+
+function onDragOver(event: DragEvent) {
+  // Only accept drags coming from the canvas
+  event.preventDefault()
+  isDropTarget.value = true
+}
+
+function onDragLeave() {
+  isDropTarget.value = false
+}
+
+function onDrop(event: DragEvent) {
+  isDropTarget.value = false
+  const payload = event.dataTransfer?.getData('text/plain') ?? ''
+  if (!payload.startsWith('canvas:')) return
+  const nodeId = payload.slice('canvas:'.length)
+  store.removeNode(nodeId)
+}
 </script>
 
 <template>
-  <aside class="add-effect-sidebar">
+  <aside
+    class="add-effect-sidebar"
+    :class="{ 'add-effect-sidebar--drop-target': isDropTarget }"
+    @dragover="onDragOver"
+    @dragleave="onDragLeave"
+    @drop="onDrop"
+  >
     <div class="add-effect-sidebar__header">
       <span>Effects</span>
     </div>
@@ -38,18 +62,20 @@ const activeTypes = computed(() => new Set(store.nodes.map((n) => n.type)))
     <div v-for="category in categories" :key="category" class="add-effect-sidebar__category">
       <p class="add-effect-sidebar__category-title">{{ category }}</p>
 
-      <button
+      <div
         v-for="effect in effects.filter((e) => e.category === category)"
         :key="effect.type"
         class="add-effect-sidebar__item"
         :class="{ 'add-effect-sidebar__item--added': activeTypes.has(effect.type) }"
-        :disabled="activeTypes.has(effect.type)"
-        @click="$emit('add', effect)"
+        :draggable="!activeTypes.has(effect.type)"
+        @dragstart="(e) => onDragStart(e, effect)"
       >
         <span class="add-effect-sidebar__item-label">{{ effect.label }}</span>
         <span class="add-effect-sidebar__item-desc">{{ effect.description }}</span>
-      </button>
+      </div>
     </div>
+
+    <div v-if="isDropTarget" class="add-effect-sidebar__drop-hint">Drop here to remove</div>
   </aside>
 </template>
 
@@ -66,6 +92,12 @@ const activeTypes = computed(() => new Set(store.nodes.map((n) => n.type)))
   flex-direction: column;
   z-index: 90;
   overflow-y: auto;
+  transition: border-color 0.15s;
+}
+
+.add-effect-sidebar--drop-target {
+  border-right-color: #c0392b;
+  background: #1e1212;
 }
 
 .add-effect-sidebar__header {
@@ -96,7 +128,7 @@ const activeTypes = computed(() => new Set(store.nodes.map((n) => n.type)))
   border-radius: 6px;
   padding: 10px 12px;
   margin-bottom: 6px;
-  cursor: pointer;
+  cursor: grab;
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -104,9 +136,10 @@ const activeTypes = computed(() => new Set(store.nodes.map((n) => n.type)))
   transition:
     border-color 0.15s,
     background 0.15s;
+  user-select: none;
 }
 
-.add-effect-sidebar__item:hover:not(:disabled) {
+.add-effect-sidebar__item:hover:not(.add-effect-sidebar__item--added) {
   background: #333;
   border-color: #2e86de;
 }
@@ -125,5 +158,15 @@ const activeTypes = computed(() => new Set(store.nodes.map((n) => n.type)))
 .add-effect-sidebar__item-desc {
   font-size: 11px;
   color: #777;
+}
+
+.add-effect-sidebar__drop-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
+  color: #c0392b;
 }
 </style>

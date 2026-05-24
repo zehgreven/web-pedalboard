@@ -5,27 +5,63 @@ import EffectCard from '@/components/EffectCard.vue'
 
 const store = usePedalboardStore()
 const draggedId = ref<string | null>(null)
+const isDropTarget = ref(false)
 
-function onDragStart(id: string) {
+// Drag from canvas card (reorder)
+function onCardDragStart(event: DragEvent, id: string) {
   draggedId.value = id
+  event.dataTransfer?.setData('text/plain', `canvas:${id}`)
 }
 
-function onDragOver(event: DragEvent, targetId: string) {
+function onCardDragOver(event: DragEvent, targetId: string) {
   event.preventDefault()
-  if (!draggedId.value || draggedId.value === targetId) return
+  const fromId = draggedId.value
+  if (!fromId || fromId === targetId) return
 
-  const fromIndex = store.nodes.findIndex((n) => n.id === draggedId.value)
+  const fromIndex = store.nodes.findIndex((n) => n.id === fromId)
   const toIndex = store.nodes.findIndex((n) => n.id === targetId)
   if (fromIndex !== -1 && toIndex !== -1) store.moveNode(fromIndex, toIndex)
 }
 
-function onDragEnd() {
+function onCardDragEnd() {
   draggedId.value = null
+}
+
+// Drop from sidebar onto canvas
+function onCanvasDragOver(event: DragEvent) {
+  event.preventDefault()
+  // Only show drop target highlight when dragging from sidebar (no draggedId means it's from sidebar)
+  if (!draggedId.value) isDropTarget.value = true
+}
+
+function onCanvasDragLeave() {
+  isDropTarget.value = false
+}
+
+function onCanvasDrop(event: DragEvent) {
+  isDropTarget.value = false
+  const payload = event.dataTransfer?.getData('text/plain') ?? ''
+  if (!payload.startsWith('sidebar:')) return
+
+  const effectType = payload.slice('sidebar:'.length) as 'nam' | 'ir'
+  const labels: Record<string, string> = { nam: 'NAM Capture', ir: 'IR Loader' }
+  store.addNode({
+    id: crypto.randomUUID(),
+    type: effectType,
+    label: labels[effectType] ?? effectType,
+    enabled: true,
+  })
 }
 </script>
 
 <template>
-  <div class="pedalboard-canvas">
+  <div
+    class="pedalboard-canvas"
+    :class="{ 'pedalboard-canvas--drop-target': isDropTarget }"
+    @dragover="onCanvasDragOver"
+    @dragleave="onCanvasDragLeave"
+    @drop="onCanvasDrop"
+  >
     <div class="pedalboard-canvas__chain">
       <div class="pedalboard-canvas__anchor">INPUT</div>
 
@@ -37,15 +73,15 @@ function onDragEnd() {
             :class="{ 'is-dragging': draggedId === node.id }"
             @toggle="store.toggleNode"
             @remove="store.removeNode"
-            @dragstart="onDragStart"
-            @dragover.prevent="(e: DragEvent) => onDragOver(e, node.id)"
-            @dragend="onDragEnd"
+            @dragstart="(e: DragEvent) => onCardDragStart(e, node.id)"
+            @dragover.prevent="(e: DragEvent) => onCardDragOver(e, node.id)"
+            @dragend="onCardDragEnd"
           />
         </template>
       </template>
 
       <div v-else class="pedalboard-canvas__empty">
-        Select an effect from the sidebar to get started
+        Drag an effect from the sidebar to get started
       </div>
 
       <div class="pedalboard-canvas__arrow" aria-hidden="true">──►</div>
@@ -67,6 +103,13 @@ function onDragEnd() {
   overflow-y: hidden;
   background: #111;
   padding: 0 24px;
+  transition: background 0.15s;
+}
+
+.pedalboard-canvas--drop-target {
+  background: #111d11;
+  outline: 2px dashed #27ae60;
+  outline-offset: -8px;
 }
 
 .pedalboard-canvas__chain {

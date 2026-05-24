@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import type { AudioNode } from '@/types/audio'
 
-defineProps<{ node: AudioNode }>()
+const props = defineProps<{ node: AudioNode }>()
 
 defineEmits<{
   toggle: [id: string]
   remove: [id: string]
-  dragstart: [id: string]
 }>()
+
+function onDragStart(event: DragEvent) {
+  event.dataTransfer?.setData('text/plain', `canvas:${props.node.id}`)
+}
 </script>
 
 <template>
@@ -15,7 +18,7 @@ defineEmits<{
     class="effect-card"
     :class="{ 'effect-card--bypassed': !node.enabled }"
     draggable="true"
-    @dragstart="$emit('dragstart', node.id)"
+    @dragstart="onDragStart"
   >
     <div class="effect-card__header">
       <span class="effect-card__label">{{ node.label }}</span>
