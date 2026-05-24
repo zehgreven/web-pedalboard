@@ -1,23 +1,25 @@
 <script setup lang="ts">
 import { usePedalboardStore } from '@/stores/pedalboard'
+import type { EffectDefinition } from '@/types/audio'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
+import AddEffectSidebar from '@/components/AddEffectSidebar.vue'
 
 const store = usePedalboardStore()
 
-// Temporary: adds a placeholder node until the Add Effect panel is implemented
-function onAddEffect() {
+function onEffectSelected(effect: EffectDefinition) {
   store.addNode({
     id: crypto.randomUUID(),
-    type: 'placeholder',
-    label: 'New Effect',
+    type: effect.type,
+    label: effect.label,
     enabled: true,
   })
 }
 </script>
 
 <template>
-  <AppHeader @add-effect="onAddEffect" @open-settings="() => {}" />
+  <AppHeader @open-settings="() => {}" />
+  <AddEffectSidebar @add="onEffectSelected" />
   <RouterView />
   <AppFooter />
 </template>

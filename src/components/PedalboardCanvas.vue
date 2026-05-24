@@ -4,7 +4,6 @@ import { usePedalboardStore } from '@/stores/pedalboard'
 import EffectCard from '@/components/EffectCard.vue'
 
 const store = usePedalboardStore()
-
 const draggedId = ref<string | null>(null)
 
 function onDragStart(id: string) {
@@ -17,9 +16,7 @@ function onDragOver(event: DragEvent, targetId: string) {
 
   const fromIndex = store.nodes.findIndex((n) => n.id === draggedId.value)
   const toIndex = store.nodes.findIndex((n) => n.id === targetId)
-  if (fromIndex !== -1 && toIndex !== -1) {
-    store.moveNode(fromIndex, toIndex)
-  }
+  if (fromIndex !== -1 && toIndex !== -1) store.moveNode(fromIndex, toIndex)
 }
 
 function onDragEnd() {
@@ -47,7 +44,9 @@ function onDragEnd() {
         </template>
       </template>
 
-      <div v-else class="pedalboard-canvas__empty">Drop effects here or click "+ Add Effect"</div>
+      <div v-else class="pedalboard-canvas__empty">
+        Select an effect from the sidebar to get started
+      </div>
 
       <div class="pedalboard-canvas__arrow" aria-hidden="true">──►</div>
       <div class="pedalboard-canvas__anchor">OUTPUT</div>
@@ -60,7 +59,7 @@ function onDragEnd() {
   position: fixed;
   top: 56px;
   bottom: 64px;
-  left: 0;
+  left: 240px;
   right: 0;
   display: flex;
   align-items: center;

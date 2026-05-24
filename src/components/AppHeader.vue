@@ -1,6 +1,5 @@
 <script setup lang="ts">
 defineEmits<{
-  addEffect: []
   openSettings: []
 }>()
 </script>
@@ -13,7 +12,6 @@ defineEmits<{
     </div>
 
     <div class="app-header__actions">
-      <button class="btn btn--primary" @click="$emit('addEffect')">+ Add Effect</button>
       <button class="btn btn--ghost" @click="$emit('openSettings')">⚙ Settings</button>
     </div>
   </header>
@@ -68,11 +66,6 @@ defineEmits<{
 
 .btn:hover {
   filter: brightness(1.2);
-}
-
-.btn--primary {
-  background: #2e86de;
-  color: #fff;
 }
 
 .btn--ghost {
