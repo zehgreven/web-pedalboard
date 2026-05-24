@@ -13,20 +13,20 @@ The app is a single-page layout divided into three vertical zones:
 ## Main Layout
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│  🎸 Web Pedalboard                          [+ Add Effect]  [⚙ Settings] │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  INPUT ──►  [NAM Capture] ──► [IR Loader] ──► [EQ] ──►  OUTPUT     │
-│             │                 │               │                     │
-│             └── drag to       └── drag to     └── drag to          │
-│                 reorder           reorder         reorder           │
-│                                                                     │
-│  [ Drop effects here or click "+ Add Effect" ]                      │
-│                                                                     │
-├─────────────────────────────────────────────────────────────────────┤
-│  🎤 INPUT: [Browser Mic ▼]    🔊 OUTPUT: [Default ▼]   [▶ Start]   │
-└─────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────┐
+│  🎸 Web Pedalboard                          [+ Add Effect]  [⚙ Settings]  │
+├───────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  INPUT ──►  [NAM Capture] ──► [IR Loader] ──► [EQ] ──►  OUTPUT            │
+│             │                 │               │                           │
+│             └── drag to       └── drag to     └── drag to                 │
+│                 reorder           reorder         reorder                 │
+│                                                                           │
+│  [ Drop effects here or click "+ Add Effect" ]                            │
+│                                                                           │
+├───────────────────────────────────────────────────────────────────────────┤
+│  🎤 INPUT: [Browser Mic ▼]    🔊 OUTPUT: [Default ▼]   [▶ Start]          │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -38,7 +38,7 @@ Each effect is represented as a card on the pedalboard canvas:
 ```
 ┌──────────────────────┐
 │  NAM Capture    [ON] │  ← toggle bypass
-│ ─────────────────── │
+│ ──────────────────── │
 │  Model: [my-amp.nam] │  ← file picker
 │                      │
 │  Gain   ──●──────    │  ← knob / slider
