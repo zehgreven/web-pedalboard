@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { usePedalboardStore } from '@/stores/pedalboard'
 import type { EffectDefinition } from '@/types/audio'
 
 defineEmits<{
   add: [effect: EffectDefinition]
 }>()
+
+const store = usePedalboardStore()
 
 const effects: EffectDefinition[] = [
   {
@@ -21,6 +25,8 @@ const effects: EffectDefinition[] = [
 ]
 
 const categories = [...new Set(effects.map((e) => e.category))]
+
+const activeTypes = computed(() => new Set(store.nodes.map((n) => n.type)))
 </script>
 
 <template>
@@ -36,6 +42,8 @@ const categories = [...new Set(effects.map((e) => e.category))]
         v-for="effect in effects.filter((e) => e.category === category)"
         :key="effect.type"
         class="add-effect-sidebar__item"
+        :class="{ 'add-effect-sidebar__item--added': activeTypes.has(effect.type) }"
+        :disabled="activeTypes.has(effect.type)"
         @click="$emit('add', effect)"
       >
         <span class="add-effect-sidebar__item-label">{{ effect.label }}</span>
@@ -98,9 +106,14 @@ const categories = [...new Set(effects.map((e) => e.category))]
     background 0.15s;
 }
 
-.add-effect-sidebar__item:hover {
+.add-effect-sidebar__item:hover:not(:disabled) {
   background: #333;
   border-color: #2e86de;
+}
+
+.add-effect-sidebar__item--added {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .add-effect-sidebar__item-label {

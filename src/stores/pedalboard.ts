@@ -6,8 +6,10 @@ export const usePedalboardStore = defineStore('pedalboard', {
     nodes: [],
   }),
   actions: {
-    addNode(node: AudioNode) {
+    addNode(node: AudioNode): boolean {
+      if (this.nodes.some((n) => n.type === node.type)) return false
       this.nodes.push(node)
+      return true
     },
     removeNode(id: string) {
       this.nodes = this.nodes.filter((n) => n.id !== id)
