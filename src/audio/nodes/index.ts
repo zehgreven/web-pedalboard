@@ -1,1 +1,3 @@
-// Audio processing nodes (NAM, IR, gain, etc.) will be exported from here
+export { NamAudioGraph } from '@/nam/NamAudioGraph'
+export { IrLoader } from '@/audio/effects/IrLoader'
+export { SignalChain } from '@/audio/engine/SignalChain'

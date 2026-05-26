@@ -44,12 +44,24 @@ function onCanvasDrop(event: DragEvent) {
   if (!payload.startsWith('sidebar:')) return
 
   const effectType = payload.slice('sidebar:'.length) as 'nam' | 'ir'
-  const labels: Record<string, string> = { nam: 'NAM Capture', ir: 'IR Loader' }
+
+  if (effectType === 'nam') {
+    store.addNode({
+      id: crypto.randomUUID(),
+      type: 'nam',
+      label: 'NAM Capture',
+      enabled: true,
+      model: null,
+    })
+    return
+  }
+
   store.addNode({
     id: crypto.randomUUID(),
-    type: effectType,
-    label: labels[effectType] ?? effectType,
+    type: 'ir',
+    label: 'IR Loader',
     enabled: true,
+    ir: null,
   })
 }
 </script>

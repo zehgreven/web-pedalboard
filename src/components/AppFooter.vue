@@ -20,9 +20,9 @@ async function toggleEngine(): Promise<void> {
   error.value = ''
   try {
     if (isRunning.value) {
-      stop()
+      await stop()
     } else {
-      await start(selectedInput.value)
+      await start(selectedInput.value, selectedOutput.value)
     }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Unknown error'

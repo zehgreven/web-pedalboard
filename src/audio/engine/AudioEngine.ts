@@ -1,45 +1,34 @@
+import { SignalChain } from '@/audio/engine/SignalChain'
+import type { AudioNode as PedalboardNode } from '@/types/audio'
+
 /**
  * AudioEngine bootstraps the Web Audio API context and manages
  * the top-level signal chain.
  */
 export class AudioEngine {
-  private context: AudioContext | null = null
-  private sourceNode: MediaStreamAudioSourceNode | null = null
-  private stream: MediaStream | null = null
+  private chain = new SignalChain()
 
-  async start(inputDeviceId: string): Promise<void> {
-    this.context = new AudioContext()
-
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        deviceId: inputDeviceId ? { exact: inputDeviceId } : undefined,
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-      },
-    })
-
-    this.sourceNode = this.context.createMediaStreamSource(this.stream)
-    this.sourceNode.connect(this.context.destination)
+  async start(
+    inputDeviceId: string,
+    outputDeviceId: string | undefined,
+    nodes: PedalboardNode[],
+  ): Promise<void> {
+    await this.chain.start(inputDeviceId, outputDeviceId, nodes)
   }
 
-  stop(): void {
-    this.sourceNode?.disconnect()
-    this.sourceNode = null
+  async syncChain(nodes: PedalboardNode[]): Promise<void> {
+    await this.chain.sync(nodes)
+  }
 
-    this.stream?.getTracks().forEach((t) => t.stop())
-    this.stream = null
-
-    this.context?.close()
-    this.context = null
+  async stop(): Promise<void> {
+    await this.chain.stop()
   }
 
   get isRunning(): boolean {
-    return this.context !== null
+    return this.chain.isRunning
   }
 
-  getContext(): AudioContext {
-    if (!this.context) throw new Error('AudioEngine not started')
-    return this.context
+  get isUsingNam(): boolean {
+    return this.chain.usesNam
   }
 }
