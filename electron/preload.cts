@@ -46,6 +46,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
     scan: (folderPaths: string[]): Promise<FoundPlugin[]> =>
       ipcRenderer.invoke('folders:scan', folderPaths),
   },
+
+  plugin: {
+    metadata: (pluginPath: string, format: string) =>
+      ipcRenderer.invoke('plugin:metadata', pluginPath, format) as Promise<{
+        name: string
+        description: string
+        params: Array<{ id: string; label: string; default: number; min: number; max: number; unit: string }>
+      } | null>,
+
+    openNativeUI: (pluginPath: string, format: string) =>
+      ipcRenderer.invoke('plugin:open-native-ui', pluginPath, format) as Promise<{
+        launched: boolean
+        tool: string
+        error?: string
+      }>,
+  },
 })
 
 export {}

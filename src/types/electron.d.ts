@@ -3,6 +3,21 @@
  * In the browser (no Electron), window.electronAPI is undefined.
  */
 
+interface ElectronPluginParam {
+  id: string
+  label: string
+  default: number
+  min: number
+  max: number
+  unit: string
+}
+
+interface ElectronPluginMetadata {
+  name: string
+  description: string
+  params: ElectronPluginParam[]
+}
+
 interface ElectronFoundPlugin {
   id: string
   name: string
@@ -36,6 +51,11 @@ interface ElectronAPI {
     add(): Promise<string[] | null>
     remove(folderPath: string): Promise<string[]>
     scan(folderPaths: string[]): Promise<ElectronFoundPlugin[]>
+  }
+
+  plugin: {
+    metadata(pluginPath: string, format: string): Promise<ElectronPluginMetadata | null>
+    openNativeUI(pluginPath: string, format: string): Promise<{ launched: boolean; tool: string; error?: string }>
   }
 }
 

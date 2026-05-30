@@ -28,4 +28,8 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
         remove: (folderPath) => electron_1.ipcRenderer.invoke('folders:remove', folderPath),
         scan: (folderPaths) => electron_1.ipcRenderer.invoke('folders:scan', folderPaths),
     },
+    plugin: {
+        metadata: (pluginPath, format) => electron_1.ipcRenderer.invoke('plugin:metadata', pluginPath, format),
+        openNativeUI: (pluginPath, format) => electron_1.ipcRenderer.invoke('plugin:open-native-ui', pluginPath, format),
+    },
 });

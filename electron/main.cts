@@ -4,6 +4,10 @@ import { app, BrowserWindow, session, ipcMain, shell, dialog } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import fsPromises from 'node:fs/promises'
+import { execFile, spawn } from 'node:child_process'
+import { promisify } from 'node:util'
+
+const execFileAsync = promisify(execFile)
 
 // ─── Paths ────────────────────────────────────────────────────────────────────
 const RENDERER_DIST = path.join(__dirname, '../dist')
@@ -126,6 +130,261 @@ function createWindow(): BrowserWindow {
   return win
 }
 
+// ─── Plugin metadata parser ───────────────────────────────────────────────────
+
+export interface PluginParam {
+  id: string
+  label: string
+  default: number
+  min: number
+  max: number
+  unit: string
+}
+
+export interface PluginMetadata {
+  name: string
+  description: string
+  params: PluginParam[]
+}
+
+// ── LV2: parse Turtle (.ttl) files inside a .lv2 bundle ──────────────────────
+
+/**
+ * Extracts all top-level blank-node blocks `[ ... ]` from a Turtle string.
+ * LV2 uses these for port declarations, including comma-chained variants:
+ *   lv2:port [ ... ] , [ ... ] , [ ... ] .
+ * We scan all `[...]` blocks in the file and filter by type predicates.
+ */
+function extractTtlBlocks(content: string): string[] {
+  const blocks: string[] = []
+  let depth = 0
+  let start = -1
+  for (let i = 0; i < content.length; i++) {
+    if (content[i] === '[') {
+      if (depth === 0) start = i + 1
+      depth++
+    } else if (content[i] === ']') {
+      depth--
+      if (depth === 0 && start !== -1) {
+        blocks.push(content.slice(start, i))
+        start = -1
+      }
+    }
+  }
+  return blocks
+}
+
+function parseTtlString(content: string): PluginParam[] {
+  const params: PluginParam[] = []
+
+  for (const block of extractTtlBlocks(content)) {
+    // Only include control input ports.
+    if (!block.includes('ControlPort')) continue
+    if (!block.includes('InputPort')) continue
+
+    const sym   = block.match(/lv2:symbol\s+"([^"]+)"/)?.[1] ?? ''
+    const label = block.match(/lv2:name\s+"([^"]+)"/)?.[1] ?? sym
+    const def   = parseFloat(block.match(/lv2:default\s+([\d.eE+\-]+)/)?.[1] ?? '0')
+    const min   = parseFloat(block.match(/lv2:minimum\s+([\d.eE+\-]+)/)?.[1] ?? '0')
+    const max   = parseFloat(block.match(/lv2:maximum\s+([\d.eE+\-]+)/)?.[1] ?? '1')
+    const unit  = block.match(/units:unit\s+units:(\w+)/)?.[1] ?? ''
+
+    if (sym) {
+      params.push({ id: sym, label, default: def, min, max, unit })
+    }
+  }
+  return params
+}
+
+function lv2PluginName(content: string): string {
+  return (
+    content.match(/doap:name\s+"([^"]+)"/)?.[1] ??
+    content.match(/lv2:name\s+"([^"]+)"/)?.[1] ??
+    ''
+  )
+}
+
+function lv2Description(content: string): string {
+  return (
+    content.match(/doap:shortdesc\s+"([^"]+)"/)?.[1] ??
+    content.match(/rdfs:comment\s+"([^"]+)"/)?.[1] ??
+    ''
+  )
+}
+
+async function loadLv2Metadata(pluginPath: string): Promise<PluginMetadata | null> {
+  // pluginPath points to the .lv2 directory.
+  let entries: string[]
+  try {
+    entries = await fsPromises.readdir(pluginPath)
+  } catch {
+    return null
+  }
+
+  const ttlFiles = entries.filter((e) => e.endsWith('.ttl'))
+  let combinedContent = ''
+  for (const f of ttlFiles) {
+    try {
+      combinedContent += await fsPromises.readFile(path.join(pluginPath, f), 'utf-8') + '\n'
+    } catch { /* skip unreadable */ }
+  }
+  if (!combinedContent) return null
+
+  return {
+    name: lv2PluginName(combinedContent) || path.basename(pluginPath, '.lv2'),
+    description: lv2Description(combinedContent),
+    params: parseTtlString(combinedContent),
+  }
+}
+
+// ── VST3: read moduleinfo.json inside the .vst3 bundle ───────────────────────
+async function loadVst3Metadata(pluginPath: string): Promise<PluginMetadata | null> {
+  // .vst3 on Linux is typically a directory bundle: Contents/moduleinfo.json
+  const candidates = [
+    path.join(pluginPath, 'Contents', 'moduleinfo.json'),
+    path.join(pluginPath, 'moduleinfo.json'),
+  ]
+  for (const file of candidates) {
+    try {
+      const raw = await fsPromises.readFile(file, 'utf-8')
+      const info = JSON.parse(raw)
+      // moduleinfo.json structure: { name, classes: [{ name, parameters: [...] }] }
+      const cls = info?.classes?.[0]
+      const params: PluginParam[] = (cls?.parameters ?? []).map((p: Record<string, unknown>, i: number) => ({
+        id: `param_${i}`,
+        label: String(p['title'] ?? p['name'] ?? `Param ${i}`),
+        default: Number(p['defaultNormalizedValue'] ?? 0.5),
+        min: 0,
+        max: 1,
+        unit: String(p['unitName'] ?? ''),
+      }))
+      return {
+        name: String(info?.name ?? cls?.name ?? path.basename(pluginPath, '.vst3')),
+        description: '',
+        params,
+      }
+    } catch { /* not found, try next */ }
+  }
+  return null
+}
+
+// ─── Native plugin GUI launcher ───────────────────────────────────────────────
+
+export interface NativeUIResult {
+  launched: boolean
+  tool: string
+  error?: string
+}
+
+/**
+ * Looks for a binary in common system paths.
+ * Using fs.existsSync is more reliable than exec('which') inside Electron,
+ * because Electron's subprocess PATH can differ from the user's shell PATH.
+ */
+function findBin(name: string): string | null {
+  const dirs = ['/usr/bin', '/usr/local/bin', '/bin', '/usr/sbin']
+  for (const dir of dirs) {
+    const full = path.join(dir, name)
+    if (fs.existsSync(full)) return full
+  }
+  return null
+}
+
+/**
+ * Spawns a detached process, optionally wrapping it with pw-jack so that
+ * JACK clients work under PipeWire without needing a running jackd daemon.
+ */
+function launchDetached(bin: string, args: string[]): string {
+  const pwjack = findBin('pw-jack')
+  if (pwjack && bin !== pwjack) {
+    console.log('[plugin:open-native-ui] spawn:', pwjack, [bin, ...args].join(' '))
+    spawn(pwjack, [bin, ...args], { detached: true, stdio: 'ignore' }).unref()
+    return `pw-jack ${path.basename(bin)}`
+  }
+  console.log('[plugin:open-native-ui] spawn:', bin, args.join(' '))
+  spawn(bin, args, { detached: true, stdio: 'ignore' }).unref()
+  return path.basename(bin)
+}
+
+/** Reads the LV2 plugin URI from a bundle's manifest.ttl. */
+async function lv2Uri(bundlePath: string): Promise<string | null> {
+  const manifestPath = path.join(bundlePath, 'manifest.ttl')
+  let content: string
+  try {
+    content = await fsPromises.readFile(manifestPath, 'utf-8')
+  } catch (e) {
+    console.error('[plugin:open-native-ui] Cannot read manifest.ttl:', e)
+    return null
+  }
+  // Match <http://...> followed (possibly with whitespace) by "a lv2:Plugin"
+  const m = content.match(/<([^>]+)>\s*(?:\r?\n\s*)?a\s+lv2:Plugin/)
+    ?? content.match(/<([^>]+)>/)
+  const uri = m?.[1] ?? null
+  console.log('[plugin:open-native-ui] LV2 URI:', uri, 'from', bundlePath)
+  return uri
+}
+
+/** Launches the native GUI for a plugin in a detached subprocess. */
+async function openNativePluginUI(pluginPath: string, format: string): Promise<NativeUIResult> {
+  console.log('[plugin:open-native-ui] request:', format, pluginPath)
+  const isLinux = process.platform === 'linux'
+  const isMac   = process.platform === 'darwin'
+
+  // ── LV2 ──────────────────────────────────────────────────────────────────
+  if (format === 'lv2') {
+    const uri = await lv2Uri(pluginPath)
+    if (!uri) return { launched: false, tool: '', error: 'Could not extract LV2 URI from manifest.ttl' }
+
+    if (isLinux || isMac) {
+      // Prefer jalv (native LV2 host), fall back to carla-single
+      for (const name of ['jalv.gtk3', 'jalv.gtk', 'jalv']) {
+        const bin = findBin(name)
+        if (bin) {
+          const tool = launchDetached(bin, [uri])
+          return { launched: true, tool }
+        }
+      }
+      const carlaBin = findBin('carla-single')
+      if (carlaBin) {
+        // carla-single accepts lowercase format: lv2 <uri>
+        const tool = launchDetached(carlaBin, ['lv2', uri])
+        return { launched: true, tool }
+      }
+      return { launched: false, tool: '', error: 'Install jalv or Carla to open LV2 GUIs.\nRun: sudo apt install jalv   OR   sudo apt install carla' }
+    }
+  }
+
+  // ── VST3 ─────────────────────────────────────────────────────────────────
+  if (format === 'vst3') {
+    if (isLinux || isMac) {
+      const bin = findBin('carla-single')
+      if (bin) {
+        const tool = launchDetached(bin, ['vst3', pluginPath])
+        return { launched: true, tool }
+      }
+      return { launched: false, tool: '', error: 'Install Carla to open VST3 GUIs.\nRun: sudo apt install carla' }
+    }
+  }
+
+  // ── VST (legacy) ─────────────────────────────────────────────────────────
+  if (format === 'vst') {
+    if (isLinux || isMac) {
+      const bin = findBin('carla-single')
+      if (bin) {
+        const tool = launchDetached(bin, ['vst2', pluginPath])
+        return { launched: true, tool }
+      }
+      return { launched: false, tool: '', error: 'Install Carla to open VST GUIs.\nRun: sudo apt install carla' }
+    }
+  }
+
+  return {
+    launched: false,
+    tool: '',
+    error: `Native GUI for ${format.toUpperCase()} is not yet supported on ${process.platform}`,
+  }
+}
+
 // ─── Generic JSON store helper ────────────────────────────────────────────────
 function jsonRead<T>(file: string, fallback: T): T {
   try {
@@ -184,6 +443,18 @@ ipcMain.handle('storage:asset:read', (_event, key: string) => {
 ipcMain.handle('storage:asset:delete', (_event, key: string) => {
   try { fs.unlinkSync(path.join(assetsDir(), key.replace(/[:/]/g, '_'))) } catch { /* ignore */ }
 })
+
+/** Reads metadata (name, parameters) for a plugin from its bundle/files. */
+ipcMain.handle('plugin:metadata', async (_event, pluginPath: string, format: string): Promise<PluginMetadata | null> => {
+  if (format === 'lv2') return loadLv2Metadata(pluginPath)
+  if (format === 'vst3') return loadVst3Metadata(pluginPath)
+  return null
+})
+
+/** Launches the native plugin GUI via jalv / carla-single. */
+ipcMain.handle('plugin:open-native-ui', async (_event, pluginPath: string, format: string) =>
+  openNativePluginUI(pluginPath, format)
+)
 
 /** Returns the currently saved plugin folder paths. */
 ipcMain.handle('folders:load', () => loadFolderPaths())
