@@ -3,17 +3,13 @@ import { ref, onMounted } from 'vue'
 import { useAudioDevices } from '@/composables/useAudioDevices'
 import { useAudioEngine } from '@/composables/useAudioEngine'
 
-const { inputDevices, outputDevices, loadDevices } = useAudioDevices()
+const { inputDevices, outputDevices, selectedInput, selectedOutput, loadDevices } = useAudioDevices()
 const { start, stop, isRunning } = useAudioEngine()
 
-const selectedInput = ref('')
-const selectedOutput = ref('')
 const error = ref('')
 
 onMounted(async () => {
   await loadDevices()
-  if (inputDevices.value.length) selectedInput.value = inputDevices.value[0]!.deviceId
-  if (outputDevices.value.length) selectedOutput.value = outputDevices.value[0]!.deviceId
 })
 
 async function toggleEngine(): Promise<void> {
