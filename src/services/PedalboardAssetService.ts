@@ -55,6 +55,8 @@ export class PedalboardAssetService {
           label: persisted.label,
           enabled: persisted.enabled,
           model: asset,
+          inputGain: persisted.inputGain ?? 50,
+          outputLevel: persisted.outputLevel ?? 50,
         })
       } else {
         nodes.push({
@@ -63,6 +65,7 @@ export class PedalboardAssetService {
           label: persisted.label,
           enabled: persisted.enabled,
           ir: asset,
+          level: persisted.level ?? 50,
         })
       }
     }
@@ -95,13 +98,11 @@ export class PedalboardAssetService {
     const fileName =
       node.type === 'nam' ? (node.model?.name ?? null) : (node.ir?.name ?? null)
 
-    return {
-      id: node.id,
-      type: node.type,
-      label: node.label,
-      enabled: node.enabled,
-      fileName,
+    const base = { id: node.id, type: node.type, label: node.label, enabled: node.enabled, fileName }
+    if (node.type === 'nam') {
+      return { ...base, inputGain: node.inputGain, outputLevel: node.outputLevel }
     }
+    return { ...base, level: node.level }
   }
 
   private revokeUrl(key: string): void {

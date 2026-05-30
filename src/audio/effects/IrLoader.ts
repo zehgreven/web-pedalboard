@@ -39,6 +39,12 @@ export class IrLoader {
     this.convolver.buffer = buffer
   }
 
+  /** Linear gain factor applied at the output (0 = mute, 1 = unity). */
+  setLevel(gain: number): void {
+    const t = this.context.currentTime
+    this.outputNode.gain.setTargetAtTime(gain, t, 0.005)
+  }
+
   setBypass(bypassed: boolean): void {
     const t = this.context.currentTime
     if (bypassed) {

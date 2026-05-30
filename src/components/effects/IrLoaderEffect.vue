@@ -2,9 +2,12 @@
 import { computed } from 'vue'
 import type { IrAudioNode } from '@/types/audio'
 import { useEffectAsset } from '@/composables/useEffectAsset'
+import { usePedalboardStore } from '@/stores/pedalboard'
+import KnobControl from '@/components/effects/KnobControl.vue'
 
 const props = defineProps<{ node: IrAudioNode }>()
 
+const store = usePedalboardStore()
 const { error, loading, saveFile, clearAsset } = useEffectAsset(props.node.id, 'ir')
 
 const hasIr = computed(() => Boolean(props.node.ir?.url))
@@ -22,33 +25,46 @@ async function onFileChange(event: Event) {
   input.value = ''
 }
 
-async function clearIr() {
-  await clearAsset()
+function setLevel(value: number) {
+  store.updateIrParams(props.node.id, { level: value })
 }
 </script>
 
 <template>
   <div class="ir-loader">
-    <label class="ir-loader__file">
-      <input
-        class="ir-loader__file-input"
-        type="file"
-        accept=".wav,audio/wav"
-        :disabled="loading"
-        @change="onFileChange"
+    <!-- Level knob -->
+    <div class="ir-loader__knobs">
+      <KnobControl
+        label="Level"
+        :model-value="node.level"
+        :default="50"
+        @update:model-value="setLevel"
       />
-      <span class="ir-loader__file-btn">{{ hasIr ? 'Change .wav' : 'Load .wav' }}</span>
-    </label>
+    </div>
 
-    <button
-      v-if="hasIr"
-      class="ir-loader__clear"
-      type="button"
-      :disabled="loading"
-      @click="clearIr"
-    >
-      Clear
-    </button>
+    <!-- File controls -->
+    <div class="ir-loader__file-row">
+      <label class="ir-loader__file">
+        <input
+          class="ir-loader__file-input"
+          type="file"
+          accept=".wav,audio/wav"
+          :disabled="loading"
+          @change="onFileChange"
+        />
+        <span class="ir-loader__file-btn">{{ hasIr ? 'Change' : 'Load .wav' }}</span>
+      </label>
+
+      <button
+        v-if="hasIr"
+        class="ir-loader__clear"
+        type="button"
+        :disabled="loading"
+        @click="clearAsset"
+      >
+        Clear
+      </button>
+    </div>
 
     <p v-if="node.ir" class="ir-loader__name">{{ node.ir.name }}</p>
     <p v-else class="ir-loader__hint">Load an impulse response</p>
@@ -60,8 +76,20 @@ async function clearIr() {
 .ir-loader {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin-top: 8px;
+}
+
+.ir-loader__knobs {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.ir-loader__file-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
 
 .ir-loader__file-input {
@@ -80,7 +108,7 @@ async function clearIr() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 10px;
+  padding: 5px 10px;
   border-radius: 6px;
   border: 1px solid #3a3a3a;
   background: #1f1f1f;
@@ -88,35 +116,38 @@ async function clearIr() {
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .ir-loader__clear {
-  padding: 4px 8px;
+  padding: 5px 8px;
   border-radius: 6px;
   border: 1px solid #3a3a3a;
   background: transparent;
   color: #bbb;
   font-size: 11px;
   cursor: pointer;
-  align-self: flex-start;
+  white-space: nowrap;
 }
 
 .ir-loader__name {
   margin: 0;
-  font-size: 11px;
-  color: #ccc;
+  font-size: 10px;
+  color: #aaa;
   word-break: break-all;
+  text-align: center;
 }
 
 .ir-loader__hint {
   margin: 0;
-  font-size: 11px;
-  color: #666;
+  font-size: 10px;
+  color: #555;
+  text-align: center;
 }
 
 .ir-loader__error {
   margin: 0;
-  font-size: 11px;
+  font-size: 10px;
   color: #e74c3c;
 }
 </style>

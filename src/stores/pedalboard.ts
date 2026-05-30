@@ -2,6 +2,11 @@ import { defineStore } from 'pinia'
 import { pedalboardAssetService } from '@/services/PedalboardAssetService'
 import type { AudioNode, IrFileRef, NamModelRef, PedalboardChain } from '@/types/audio'
 
+/** Converts the 0–100 knob value to a linear gain factor (50 = ×1.0). */
+export function knobToGain(value: number): number {
+  return value / 50
+}
+
 export const usePedalboardStore = defineStore('pedalboard', {
   state: (): PedalboardChain => ({
     nodes: [],
@@ -46,6 +51,22 @@ export const usePedalboardStore = defineStore('pedalboard', {
       const node = this.nodes.find((n) => n.id === id)
       if (!node || node.type !== 'ir') return
       node.ir = ir
+      await this.persist()
+    },
+    async updateNamParams(
+      id: string,
+      params: Partial<{ inputGain: number; outputLevel: number }>,
+    ): Promise<void> {
+      const node = this.nodes.find((n) => n.id === id)
+      if (!node || node.type !== 'nam') return
+      if (params.inputGain !== undefined) node.inputGain = params.inputGain
+      if (params.outputLevel !== undefined) node.outputLevel = params.outputLevel
+      await this.persist()
+    },
+    async updateIrParams(id: string, params: Partial<{ level: number }>): Promise<void> {
+      const node = this.nodes.find((n) => n.id === id)
+      if (!node || node.type !== 'ir') return
+      if (params.level !== undefined) node.level = params.level
       await this.persist()
     },
     async moveNode(fromIndex: number, toIndex: number): Promise<void> {

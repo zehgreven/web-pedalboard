@@ -164,6 +164,22 @@ export class NamAudioGraph {
     this.modelUrl = modelUrl
   }
 
+  // ─── Gain controls ───────────────────────────────────────────────────────
+
+  /** Linear gain factor applied before the NAM model (0 = mute, 1 = unity). */
+  setInputGain(gain: number): void {
+    const node = this.nodes.inputGainNode
+    if (!node || !this.nodes.audioContext) return
+    node.gain.setTargetAtTime(gain, this.nodes.audioContext.currentTime, 0.005)
+  }
+
+  /** Linear gain factor applied after the NAM model (0 = mute, 1 = unity). */
+  setOutputLevel(gain: number): void {
+    const node = this.nodes.outputGainNode
+    if (!node || !this.nodes.audioContext) return
+    node.gain.setTargetAtTime(gain, this.nodes.audioContext.currentTime, 0.005)
+  }
+
   // ─── Bypass ───────────────────────────────────────────────────────────────
 
   setBypass(bypassed: boolean): void {

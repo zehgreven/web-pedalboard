@@ -80,12 +80,15 @@ export class SignalChain {
     for (const node of nodes) {
       if (node.type === 'nam' && this.namGraph) {
         this.namGraph.setBypass(!node.enabled)
+        this.namGraph.setInputGain(node.inputGain / 50)
+        this.namGraph.setOutputLevel(node.outputLevel / 50)
         if (node.model?.url) await this.namGraph.loadModel(node.model.url)
       }
       if (node.type === 'ir') {
         const ir = this.irLoaders.get(node.id)
         if (ir) {
           ir.setBypass(!node.enabled)
+          ir.setLevel(node.level / 50)
           if (node.ir?.url) await ir.load(node.ir.url)
         }
       }
@@ -147,6 +150,8 @@ export class SignalChain {
 
       if (segment.type === 'nam' && this.namGraph) {
         this.namGraph.setBypass(!node.enabled)
+        this.namGraph.setInputGain(node.inputGain / 50)
+        this.namGraph.setOutputLevel(node.outputLevel / 50)
         const input = this.namGraph.getChainInput()
         const output = this.namGraph.getChainTail()
         if (!head) head = input
@@ -159,6 +164,7 @@ export class SignalChain {
         const ir = new IrLoader(this.context)
         await ir.load(node.ir.url)
         ir.setBypass(!node.enabled)
+        ir.setLevel(node.level / 50)
         this.irLoaders.set(node.id, ir)
 
         const input = ir.getInput()

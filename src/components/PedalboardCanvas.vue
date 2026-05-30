@@ -52,6 +52,8 @@ function onCanvasDrop(event: DragEvent) {
       label: 'NAM Capture',
       enabled: true,
       model: null,
+      inputGain: 50,
+      outputLevel: 50,
     })
     return
   }
@@ -62,6 +64,7 @@ function onCanvasDrop(event: DragEvent) {
     label: 'IR Loader',
     enabled: true,
     ir: null,
+    level: 50,
   })
 }
 </script>

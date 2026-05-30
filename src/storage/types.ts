@@ -13,6 +13,12 @@ export interface PersistedEffectNode {
   enabled: boolean
   /** Original file name when an asset is stored for this node. */
   fileName: string | null
+  /** NAM only: pre-model input gain (0–100, default 50). */
+  inputGain?: number
+  /** NAM only: post-model output level (0–100, default 50). */
+  outputLevel?: number
+  /** IR only: output level (0–100, default 50). */
+  level?: number
 }
 
 /** Binary asset storage — swap this implementation for cloud sync later. */
