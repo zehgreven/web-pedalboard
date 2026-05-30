@@ -1,0 +1,1 @@
+var{contextBridge:e,ipcRenderer:t}=(0,require("node:module").createRequire)({}.url)(`electron`);e.exposeInMainWorld(`electronAPI`,{platform:process.platform,getVersion:()=>t.invoke(`app:version`)});

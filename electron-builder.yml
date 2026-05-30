@@ -1,0 +1,34 @@
+appId: dev.josedev.guitar-pedalboard
+productName: Guitar Pedalboard
+copyright: Copyright © 2026
+
+# Entry point compiled by vite-plugin-electron
+main: dist-electron/main.cjs
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - public/**/*
+
+# ── Linux ──────────────────────────────────────────────────────────────────────
+linux:
+  target:
+    - AppImage
+    - deb
+  category: AudioVideo
+  executableName: guitar-pedalboard
+
+# ── macOS ──────────────────────────────────────────────────────────────────────
+mac:
+  target:
+    - dmg
+  category: public.app-category.music
+
+# ── Windows ────────────────────────────────────────────────────────────────────
+win:
+  target:
+    - nsis
