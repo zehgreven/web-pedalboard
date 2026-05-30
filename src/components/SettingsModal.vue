@@ -38,7 +38,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             <div>
               <p class="setting-section__label">Plugin Folders</p>
               <p class="setting-section__desc">
-                Folders where your <code>.vst</code> and <code>.vst3</code> plugins are installed.
+                Folders where your <code>.vst</code>, <code>.vst3</code>,
+                <code>.lv2</code> and <code>LADSPA</code> plugins are installed.
               </p>
             </div>
             <button class="btn-add" @click="addFolder">+ Add folder</button>
@@ -88,8 +89,8 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           </div>
 
           <p class="setting-section__note">
-            ⚠ Browsers cannot load or execute native VST/VST3 binaries — estas pastas são usadas
-            apenas para referência e futura integração com um host local.
+            ⚠ Browsers cannot load or execute native VST/VST3, LV2 or LADSPA binaries — estas
+            pastas são usadas apenas para referência e futura integração com um host local.
             A permissão de leitura precisa ser re-concedida a cada visita.
           </p>
         </section>
