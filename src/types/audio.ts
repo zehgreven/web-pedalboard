@@ -1,4 +1,5 @@
-export type EffectType = 'nam' | 'ir'
+export type EffectType = 'nam' | 'ir' | 'plugin'
+export type PluginFormat = 'vst3' | 'vst' | 'lv2' | 'ladspa'
 
 export interface BaseAudioNode {
   id: string
@@ -55,7 +56,16 @@ export interface IrAudioNode extends BaseAudioNode {
   highCut: number
 }
 
-export type AudioNode = NamAudioNode | IrAudioNode
+export interface PluginAudioNode extends BaseAudioNode {
+  type: 'plugin'
+  format: PluginFormat
+  /** Display name (filename without extension). */
+  pluginName: string
+  /** Relative path inside the configured folder. */
+  pluginPath: string
+}
+
+export type AudioNode = NamAudioNode | IrAudioNode | PluginAudioNode
 
 export interface PedalboardChain {
   nodes: AudioNode[]

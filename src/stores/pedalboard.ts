@@ -21,7 +21,8 @@ export const usePedalboardStore = defineStore('pedalboard', {
       await pedalboardAssetService.persist(this.nodes)
     },
     async addNode(node: AudioNode): Promise<boolean> {
-      if (this.nodes.some((n) => n.type === node.type)) return false
+      // 'plugin' nodes are unlimited; 'nam' and 'ir' are limited to one each.
+      if (node.type !== 'plugin' && this.nodes.some((n) => n.type === node.type)) return false
       this.nodes.push(node)
       await this.persist()
       return true
@@ -33,6 +34,7 @@ export const usePedalboardStore = defineStore('pedalboard', {
       } else if (node?.type === 'ir') {
         await pedalboardAssetService.clearAsset(id, 'ir')
       }
+      // 'plugin' nodes have no stored assets — nothing to clear.
       this.nodes = this.nodes.filter((n) => n.id !== id)
       await this.persist()
     },

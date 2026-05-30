@@ -2,6 +2,7 @@
 import type { AudioNode } from '@/types/audio'
 import NamCaptureEffect from '@/components/effects/NamCaptureEffect.vue'
 import IrLoaderEffect from '@/components/effects/IrLoaderEffect.vue'
+import PluginEffect from '@/components/effects/PluginEffect.vue'
 
 const props = defineProps<{ node: AudioNode }>()
 
@@ -22,6 +23,7 @@ function onDragStart(event: DragEvent) {
       'effect-card--bypassed': !node.enabled,
       'effect-card--nam': node.type === 'nam',
       'effect-card--ir': node.type === 'ir',
+      'effect-card--plugin': node.type === 'plugin',
     }"
     draggable="true"
     @dragstart="onDragStart"
@@ -41,6 +43,7 @@ function onDragStart(event: DragEvent) {
     <div class="effect-card__body">
       <NamCaptureEffect v-if="node.type === 'nam'" :node="node" />
       <IrLoaderEffect v-else-if="node.type === 'ir'" :node="node" />
+      <PluginEffect v-else-if="node.type === 'plugin'" :node="node" />
     </div>
 
     <div class="effect-card__footer">
@@ -65,6 +68,11 @@ function onDragStart(event: DragEvent) {
 .effect-card--ir {
   width: 200px;
   min-width: 200px;
+}
+
+.effect-card--plugin {
+  width: 180px;
+  min-width: 180px;
 }
 
 .effect-card {

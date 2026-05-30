@@ -25,7 +25,10 @@ const effects: EffectDefinition[] = [
 ]
 
 const categories = [...new Set(effects.map((e) => e.category))]
-const activeTypes = computed(() => new Set(store.nodes.map((n) => n.type)))
+/** NAM and IR are limited to 1 instance; plugins are unlimited. */
+const singletonTypes = computed(() =>
+  new Set(store.nodes.filter((n) => n.type !== 'plugin').map((n) => n.type)),
+)
 const isDropTarget = ref(false)
 
 // Plugin listing grouped by format
@@ -59,6 +62,15 @@ onMounted(async () => {
 
 function onDragStart(event: DragEvent, effect: EffectDefinition) {
   event.dataTransfer?.setData('text/plain', `sidebar:${effect.type}`)
+}
+
+function onPluginDragStart(event: DragEvent, plugin: FoundPlugin) {
+  // payload: "sidebar:plugin:<format>:<name>:<path>"
+  event.dataTransfer?.setData(
+    'text/plain',
+    `sidebar:plugin:${plugin.format}:${plugin.name}:${plugin.path}`,
+  )
+  event.dataTransfer!.effectAllowed = 'copy'
 }
 
 function onDragOver(event: DragEvent) {
@@ -95,8 +107,8 @@ function onDrop(event: DragEvent) {
         v-for="effect in effects.filter((e) => e.category === category)"
         :key="effect.type"
         class="sidebar__effect"
-        :class="{ 'sidebar__effect--added': activeTypes.has(effect.type) }"
-        :draggable="!activeTypes.has(effect.type)"
+        :class="{ 'sidebar__effect--added': singletonTypes.has(effect.type) }"
+        :draggable="!singletonTypes.has(effect.type)"
         @dragstart="(e) => onDragStart(e, effect)"
       >
         <span class="sidebar__effect-label">{{ effect.label }}</span>
@@ -138,8 +150,11 @@ function onDrop(event: DragEvent) {
           v-for="plugin in group.items"
           :key="plugin.id"
           class="sidebar__plugin"
-          :title="plugin.path"
+          draggable="true"
+          :title="`${plugin.path}\n\nDrag to add to chain`"
+          @dragstart="(e) => onPluginDragStart(e, plugin)"
         >
+          <span class="sidebar__plugin-icon">⠿</span>
           {{ plugin.name }}
         </div>
       </div>
@@ -239,20 +254,37 @@ function onDrop(event: DragEvent) {
   color: var(--text-3);
 }
 
-/* ── Plugin entries (text-only) ── */
+/* ── Plugin entries (draggable) ── */
 .sidebar__plugin {
-  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
   font-size: 12px;
   color: var(--text-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: default;
-  border-bottom: 1px solid var(--border-faint);
+  cursor: grab;
+  border-radius: 5px;
+  margin-bottom: 2px;
+  user-select: none;
+  transition: background 0.15s;
 }
 
-.sidebar__plugin:last-child {
-  border-bottom: none;
+.sidebar__plugin:hover {
+  background: var(--bg-card);
+  color: var(--text-1);
+}
+
+.sidebar__plugin:active {
+  cursor: grabbing;
+}
+
+.sidebar__plugin-icon {
+  font-size: 11px;
+  color: var(--text-4);
+  flex-shrink: 0;
 }
 
 /* ── Hints & states ── */

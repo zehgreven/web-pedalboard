@@ -4,7 +4,7 @@ import {
   getUserAssetStore,
 } from '@/storage'
 import type { PersistedEffectNode, PersistedPedalboardState } from '@/storage/types'
-import type { AudioNode, EffectType, IrFileRef, NamModelRef } from '@/types/audio'
+import type { AudioNode, EffectType, IrFileRef, NamModelRef, PluginFormat } from '@/types/audio'
 
 export class PedalboardAssetService {
   private readonly blobUrls = new Map<string, string>()
@@ -64,7 +64,7 @@ export class PedalboardAssetService {
           treble: persisted.treble ?? 50,
           eqActive: persisted.eqActive ?? true,
         })
-      } else {
+      } else if (persisted.type === 'ir') {
         nodes.push({
           id: persisted.id,
           type: 'ir',
@@ -74,6 +74,16 @@ export class PedalboardAssetService {
           level: persisted.level ?? 50,
           lowCut: persisted.lowCut ?? 0,
           highCut: persisted.highCut ?? 0,
+        })
+      } else if (persisted.type === 'plugin') {
+        nodes.push({
+          id: persisted.id,
+          type: 'plugin',
+          label: persisted.label,
+          enabled: persisted.enabled,
+          format: (persisted.pluginFormat ?? 'vst3') as PluginFormat,
+          pluginName: persisted.pluginName ?? persisted.label,
+          pluginPath: persisted.pluginPath ?? '',
         })
       }
     }
@@ -104,7 +114,9 @@ export class PedalboardAssetService {
 
   private toPersistedNode(node: AudioNode): PersistedEffectNode {
     const fileName =
-      node.type === 'nam' ? (node.model?.name ?? null) : (node.ir?.name ?? null)
+      node.type === 'nam' ? (node.model?.name ?? null)
+      : node.type === 'ir' ? (node.ir?.name ?? null)
+      : null
 
     const base = { id: node.id, type: node.type, label: node.label, enabled: node.enabled, fileName }
     if (node.type === 'nam') {
@@ -120,7 +132,11 @@ export class PedalboardAssetService {
         eqActive: node.eqActive,
       }
     }
-    return { ...base, level: node.level, lowCut: node.lowCut, highCut: node.highCut }
+    if (node.type === 'ir') {
+      return { ...base, level: node.level, lowCut: node.lowCut, highCut: node.highCut }
+    }
+    // plugin
+    return { ...base, pluginFormat: node.format, pluginName: node.pluginName, pluginPath: node.pluginPath }
   }
 
   private revokeUrl(key: string): void {

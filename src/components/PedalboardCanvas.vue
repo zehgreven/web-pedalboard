@@ -43,9 +43,9 @@ function onCanvasDrop(event: DragEvent) {
   const payload = event.dataTransfer?.getData('text/plain') ?? ''
   if (!payload.startsWith('sidebar:')) return
 
-  const effectType = payload.slice('sidebar:'.length) as 'nam' | 'ir'
+  const rest = payload.slice('sidebar:'.length)
 
-  if (effectType === 'nam') {
+  if (rest === 'nam') {
     store.addNode({
       id: crypto.randomUUID(),
       type: 'nam',
@@ -64,16 +64,34 @@ function onCanvasDrop(event: DragEvent) {
     return
   }
 
-  store.addNode({
-    id: crypto.randomUUID(),
-    type: 'ir',
-    label: 'IR Loader',
-    enabled: true,
-    ir: null,
-    level: 50,
-    lowCut: 0,
-    highCut: 0,
-  })
+  if (rest === 'ir') {
+    store.addNode({
+      id: crypto.randomUUID(),
+      type: 'ir',
+      label: 'IR Loader',
+      enabled: true,
+      ir: null,
+      level: 50,
+      lowCut: 0,
+      highCut: 0,
+    })
+    return
+  }
+
+  // Generic installed plugin: payload = "plugin:<format>:<name>:<path>"
+  if (rest.startsWith('plugin:')) {
+    const [, format, name, ...pathParts] = rest.split(':')
+    if (!format || !name) return
+    store.addNode({
+      id: crypto.randomUUID(),
+      type: 'plugin',
+      label: name,
+      enabled: true,
+      format: format as import('@/types/audio').PluginFormat,
+      pluginName: name,
+      pluginPath: pathParts.join(':'),
+    })
+  }
 }
 </script>
 

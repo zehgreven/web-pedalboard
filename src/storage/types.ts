@@ -35,6 +35,12 @@ export interface PersistedEffectNode {
   lowCut?: number
   /** IR only: high-cut knob (0–100, default 0). */
   highCut?: number
+  /** Plugin only: format (vst3 | vst | lv2 | ladspa). */
+  pluginFormat?: string
+  /** Plugin only: display name. */
+  pluginName?: string
+  /** Plugin only: original path. */
+  pluginPath?: string
 }
 
 /** Binary asset storage — swap this implementation for cloud sync later. */

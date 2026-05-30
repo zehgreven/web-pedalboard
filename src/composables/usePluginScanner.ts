@@ -1,7 +1,8 @@
 import { ref, watch } from 'vue'
 import { usePluginFolders } from '@/composables/usePluginFolders'
+import type { PluginFormat } from '@/types/audio'
 
-export type PluginFormat = 'vst3' | 'vst' | 'lv2' | 'ladspa'
+export type { PluginFormat }
 
 export interface FoundPlugin {
   id: string
