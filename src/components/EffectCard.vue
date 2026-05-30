@@ -44,7 +44,7 @@ function onDragStart(event: DragEvent) {
     </div>
 
     <div class="effect-card__footer">
-      <span class="effect-card__drag-handle" aria-hidden="true">⠿ drag</span>
+      <span class="effect-card__drag-handle" aria-hidden="true">⠿</span>
       <button
         class="effect-card__remove"
         aria-label="Remove effect"
@@ -57,7 +57,6 @@ function onDragStart(event: DragEvent) {
 </template>
 
 <style scoped>
-.effect-card--nam,
 .effect-card--ir {
   width: 200px;
   min-width: 200px;
@@ -78,6 +77,11 @@ function onDragStart(event: DragEvent) {
     opacity 0.2s,
     border-color 0.2s;
   user-select: none;
+}
+
+.effect-card--nam {
+  width: 200px;
+  min-width: 200px;
 }
 
 .effect-card--bypassed {

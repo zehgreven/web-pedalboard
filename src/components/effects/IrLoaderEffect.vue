@@ -90,6 +90,7 @@ function setLevel(value: number) {
   display: flex;
   gap: 6px;
   align-items: center;
+  justify-content: center;
 }
 
 .ir-loader__file-input {

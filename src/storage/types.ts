@@ -17,6 +17,18 @@ export interface PersistedEffectNode {
   inputGain?: number
   /** NAM only: post-model output level (0–100, default 50). */
   outputLevel?: number
+  /** NAM only: noise gate threshold (0–100, default 0). */
+  noiseGateThreshold?: number
+  /** NAM only: noise gate active (default true). */
+  noiseGateActive?: boolean
+  /** NAM only: bass knob (0–100, default 50). */
+  bass?: number
+  /** NAM only: mid knob (0–100, default 50). */
+  mid?: number
+  /** NAM only: treble knob (0–100, default 50). */
+  treble?: number
+  /** NAM only: tone stack active (default true). */
+  eqActive?: boolean
   /** IR only: output level (0–100, default 50). */
   level?: number
 }

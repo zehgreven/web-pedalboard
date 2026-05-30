@@ -10,8 +10,12 @@ const props = withDefaults(
     label: string
     /** Pixels of vertical drag needed to sweep the full range. */
     sensitivity?: number
+    /** Custom value formatter. When provided, replaces the default ±% display. */
+    formatValue?: (v: number) => string
+    /** When true, the knob is visually dimmed and non-interactive. */
+    disabled?: boolean
   }>(),
-  { min: 0, max: 100, default: 50, sensitivity: 160 },
+  { min: 0, max: 100, default: 50, sensitivity: 160, disabled: false },
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: number] }>()
@@ -63,6 +67,7 @@ let dragStartY = 0
 let dragStartValue = 0
 
 function onPointerDown(e: PointerEvent) {
+  if (props.disabled) return
   isDragging.value = true
   dragStartY = e.clientY
   dragStartValue = props.modelValue
@@ -84,12 +89,14 @@ function onPointerUp() {
 }
 
 function onDoubleClick() {
+  if (props.disabled) return
   emit('update:modelValue', props.default ?? props.min)
 }
 
 // ─── Display value ───────────────────────────────────────────────────────────
 
 const displayValue = computed(() => {
+  if (props.formatValue) return props.formatValue(props.modelValue)
   const v = props.modelValue
   if (v === 50) return '—'
   const pct = Math.round((v / 50 - 1) * 100)
@@ -98,7 +105,7 @@ const displayValue = computed(() => {
 </script>
 
 <template>
-  <div class="knob" :class="{ 'knob--dragging': isDragging }">
+  <div class="knob" :class="{ 'knob--dragging': isDragging, 'knob--disabled': disabled }">
     <svg
       class="knob__svg"
       :width="SIZE"
@@ -167,6 +174,11 @@ const displayValue = computed(() => {
 .knob--dragging .knob__svg,
 .knob__svg:hover {
   filter: brightness(1.25);
+}
+
+.knob--disabled {
+  opacity: 0.35;
+  pointer-events: none;
 }
 
 .knob__label {

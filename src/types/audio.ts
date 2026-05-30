@@ -19,6 +19,18 @@ export interface NamAudioNode extends BaseAudioNode {
   inputGain: number
   /** Post-model output level. 0–100 where 50 = unity (×1.0). Default: 50 */
   outputLevel: number
+  /** Noise gate threshold. 0–100 maps to −80–0 dB. Default: 0 (−80 dB). */
+  noiseGateThreshold: number
+  /** Whether the noise gate is active. Default: true */
+  noiseGateActive: boolean
+  /** Bass shelf. 0–100 where 50 = flat (0 dB). Default: 50 */
+  bass: number
+  /** Mid peak. 0–100 where 50 = flat (0 dB). Default: 50 */
+  mid: number
+  /** Treble shelf. 0–100 where 50 = flat (0 dB). Default: 50 */
+  treble: number
+  /** Whether the tone stack is active. Default: true */
+  eqActive: boolean
 }
 
 export interface IrFileRef {

@@ -82,6 +82,15 @@ export class SignalChain {
         this.namGraph.setBypass(!node.enabled)
         this.namGraph.setInputGain(node.inputGain / 50)
         this.namGraph.setOutputLevel(node.outputLevel / 50)
+        this.namGraph.setNoiseGateThreshold((node.noiseGateThreshold / 100) * 80 - 80)
+        this.namGraph.setNoiseGateActive(node.noiseGateActive)
+        if (node.eqActive) {
+          this.namGraph.setBass(((node.bass - 50) / 50) * 12)
+          this.namGraph.setMid(((node.mid - 50) / 50) * 12)
+          this.namGraph.setTreble(((node.treble - 50) / 50) * 12)
+        } else {
+          this.namGraph.setEqActive(false)
+        }
         if (node.model?.url) await this.namGraph.loadModel(node.model.url)
       }
       if (node.type === 'ir') {
@@ -152,6 +161,13 @@ export class SignalChain {
         this.namGraph.setBypass(!node.enabled)
         this.namGraph.setInputGain(node.inputGain / 50)
         this.namGraph.setOutputLevel(node.outputLevel / 50)
+        this.namGraph.setNoiseGateThreshold((node.noiseGateThreshold / 100) * 80 - 80)
+        this.namGraph.setNoiseGateActive(node.noiseGateActive)
+        if (node.eqActive) {
+          this.namGraph.setBass(((node.bass - 50) / 50) * 12)
+          this.namGraph.setMid(((node.mid - 50) / 50) * 12)
+          this.namGraph.setTreble(((node.treble - 50) / 50) * 12)
+        }
         const input = this.namGraph.getChainInput()
         const output = this.namGraph.getChainTail()
         if (!head) head = input
@@ -195,7 +211,7 @@ export class SignalChain {
   }
 
   private getChainHead(nodes: PedalboardNode[]): globalThis.AudioNode | null {
-    if (this.namGraph) return this.namGraph.getChainInput()
+    if (this.namGraph) return this.namGraph.getChainInput() // gateAnalyserNode
 
     const firstNode = nodes.find((n) => this.irLoaders.has(n.id))
     if (firstNode) return this.irLoaders.get(firstNode.id)!.getInput()

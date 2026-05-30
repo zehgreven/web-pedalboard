@@ -20,10 +20,20 @@ export interface NamAudioNodes {
   sourceNode: MediaElementAudioSourceNode | null
   liveSourceNode: MediaStreamAudioSourceNode | null
   mediaStream: MediaStream | null
+  /** Measures raw mic level for the noise gate. */
+  gateAnalyserNode: AnalyserNode | null
+  /** Controlled by NoiseGate to open/close the signal. */
+  gateGainNode: GainNode | null
   inputGainNode: GainNode | null
   outputGainNode: GainNode | null
   bypassNode: GainNode | null
   inputMeterNode: AnalyserNode | null
+  /** Tone stack — Bass low-shelf filter. */
+  bassNode: BiquadFilterNode | null
+  /** Tone stack — Mid peaking filter. */
+  midNode: BiquadFilterNode | null
+  /** Tone stack — Treble high-shelf filter. */
+  trebleNode: BiquadFilterNode | null
   outputMeterNode: AnalyserNode | null
 }
 
@@ -34,10 +44,15 @@ export const EMPTY_NAM_AUDIO_NODES: NamAudioNodes = {
   sourceNode: null,
   liveSourceNode: null,
   mediaStream: null,
+  gateAnalyserNode: null,
+  gateGainNode: null,
   inputGainNode: null,
   outputGainNode: null,
   bypassNode: null,
   inputMeterNode: null,
+  bassNode: null,
+  midNode: null,
+  trebleNode: null,
   outputMeterNode: null,
 }
 

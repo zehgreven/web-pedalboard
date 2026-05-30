@@ -25,49 +25,91 @@ async function onFileChange(event: Event) {
   input.value = ''
 }
 
-function setInputGain(value: number) {
-  store.updateNamParams(props.node.id, { inputGain: value })
+function param(values: Parameters<typeof store.updateNamParams>[1]) {
+  store.updateNamParams(props.node.id, values)
 }
 
-function setOutputLevel(value: number) {
-  store.updateNamParams(props.node.id, { outputLevel: value })
+// ─── Knob formatters ─────────────────────────────────────────────────────────
+
+function formatGate(v: number): string {
+  const db = Math.round((v / 100) * 80 - 80)
+  return `${db} dB`
+}
+
+function formatEq(v: number): string {
+  const db = Math.round(((v - 50) / 50) * 12)
+  if (db === 0) return '—'
+  return db > 0 ? `+${db} dB` : `${db} dB`
 }
 </script>
 
 <template>
-  <div class="nam-capture">
-    <!-- Knobs row -->
-    <div class="nam-capture__knobs">
+  <div class="nam">
+    <!-- ── Main gain row (Gate + Input + Output) ── -->
+    <div class="nam__row">
+      <KnobControl
+        label="Gate"
+        :model-value="node.noiseGateThreshold"
+        :min="0"
+        :max="100"
+        :default="0"
+        :format-value="formatGate"
+        @update:model-value="(v) => param({ noiseGateThreshold: v })"
+      />
       <KnobControl
         label="Input"
         :model-value="node.inputGain"
         :default="50"
-        @update:model-value="setInputGain"
+        @update:model-value="(v) => param({ inputGain: v })"
       />
       <KnobControl
         label="Output"
         :model-value="node.outputLevel"
         :default="50"
-        @update:model-value="setOutputLevel"
+        @update:model-value="(v) => param({ outputLevel: v })"
       />
     </div>
 
-    <!-- File controls -->
-    <div class="nam-capture__file-row">
-      <label class="nam-capture__file">
+    <!-- ── Tone Stack ── -->
+    <div class="nam__row">
+      <KnobControl
+        label="Bass"
+        :model-value="node.bass"
+        :default="50"
+        :format-value="formatEq"
+        @update:model-value="(v) => param({ bass: v })"
+      />
+      <KnobControl
+        label="Mid"
+        :model-value="node.mid"
+        :default="50"
+        :format-value="formatEq"
+        @update:model-value="(v) => param({ mid: v })"
+      />
+      <KnobControl
+        label="Treble"
+        :model-value="node.treble"
+        :default="50"
+        :format-value="formatEq"
+        @update:model-value="(v) => param({ treble: v })"
+      />
+    </div>
+
+    <!-- ── File controls ── -->
+    <div class="nam__file-row">
+      <label class="nam__file">
         <input
-          class="nam-capture__file-input"
+          class="nam__file-input"
           type="file"
           accept=".nam"
           :disabled="loading"
           @change="onFileChange"
         />
-        <span class="nam-capture__file-btn">{{ hasModel ? 'Change' : 'Load .nam' }}</span>
+        <span class="nam__file-btn">{{ hasModel ? 'Change' : 'Load .nam' }}</span>
       </label>
-
       <button
         v-if="hasModel"
-        class="nam-capture__clear"
+        class="nam__clear"
         type="button"
         :disabled="loading"
         @click="clearAsset"
@@ -76,34 +118,37 @@ function setOutputLevel(value: number) {
       </button>
     </div>
 
-    <p v-if="node.model" class="nam-capture__model">{{ node.model.name }}</p>
-    <p v-else class="nam-capture__hint">Load a capture, then press Start</p>
-    <p v-if="error" class="nam-capture__error">{{ error }}</p>
+    <p v-if="node.model" class="nam__model">{{ node.model.name }}</p>
+    <p v-else class="nam__hint">Load a capture, then press Start</p>
+    <p v-if="error" class="nam__error">{{ error }}</p>
   </div>
 </template>
 
 <style scoped>
-.nam-capture {
+.nam {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
-.nam-capture__knobs {
+/* ── Rows ── */
+.nam__row {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   justify-content: center;
-  padding: 4px 0;
+  padding: 2px 0;
 }
 
-.nam-capture__file-row {
+/* ── File controls ── */
+.nam__file-row {
   display: flex;
   gap: 6px;
   align-items: center;
+  justify-content: center;
 }
 
-.nam-capture__file-input {
+.nam__file-input {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -115,7 +160,7 @@ function setOutputLevel(value: number) {
   border: 0;
 }
 
-.nam-capture__file-btn {
+.nam__file-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -130,7 +175,7 @@ function setOutputLevel(value: number) {
   white-space: nowrap;
 }
 
-.nam-capture__clear {
+.nam__clear {
   padding: 5px 8px;
   border-radius: 6px;
   border: 1px solid #3a3a3a;
@@ -141,7 +186,7 @@ function setOutputLevel(value: number) {
   white-space: nowrap;
 }
 
-.nam-capture__model {
+.nam__model {
   margin: 0;
   font-size: 10px;
   color: #aaa;
@@ -149,14 +194,14 @@ function setOutputLevel(value: number) {
   text-align: center;
 }
 
-.nam-capture__hint {
+.nam__hint {
   margin: 0;
   font-size: 10px;
   color: #555;
   text-align: center;
 }
 
-.nam-capture__error {
+.nam__error {
   margin: 0;
   font-size: 10px;
   color: #e74c3c;

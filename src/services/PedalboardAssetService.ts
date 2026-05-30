@@ -57,6 +57,12 @@ export class PedalboardAssetService {
           model: asset,
           inputGain: persisted.inputGain ?? 50,
           outputLevel: persisted.outputLevel ?? 50,
+          noiseGateThreshold: persisted.noiseGateThreshold ?? 0,
+          noiseGateActive: persisted.noiseGateActive ?? true,
+          bass: persisted.bass ?? 50,
+          mid: persisted.mid ?? 50,
+          treble: persisted.treble ?? 50,
+          eqActive: persisted.eqActive ?? true,
         })
       } else {
         nodes.push({
@@ -100,7 +106,17 @@ export class PedalboardAssetService {
 
     const base = { id: node.id, type: node.type, label: node.label, enabled: node.enabled, fileName }
     if (node.type === 'nam') {
-      return { ...base, inputGain: node.inputGain, outputLevel: node.outputLevel }
+      return {
+        ...base,
+        inputGain: node.inputGain,
+        outputLevel: node.outputLevel,
+        noiseGateThreshold: node.noiseGateThreshold,
+        noiseGateActive: node.noiseGateActive,
+        bass: node.bass,
+        mid: node.mid,
+        treble: node.treble,
+        eqActive: node.eqActive,
+      }
     }
     return { ...base, level: node.level }
   }

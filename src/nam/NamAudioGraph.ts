@@ -8,6 +8,18 @@ const SILENT_WAV =
 
 const WORKLET_INIT_TIMEOUT_MS = 15_000
 
+// ─── Tone-stack helpers ────────────────────────────────────────────────────
+
+/** Maps knob 0–100 (50 = flat) to filter gain in dB (±12 dB). */
+function knobToEqGain(value: number): number {
+  return ((value - 50) / 50) * 12
+}
+
+/** Maps 0–100 knob to threshold in dB (0 → −80 dB, 100 → 0 dB). */
+function knobToGateDb(value: number): number {
+  return (value / 100) * 80 - 80
+}
+
 /**
  * Lifecycle:
  *   init()         – loads WASM script + calls setDsp once; AudioContext created by WASM
@@ -16,12 +28,24 @@ const WORKLET_INIT_TIMEOUT_MS = 15_000
  *   resume()       – re-attaches mic, resumes AudioContext (Start button again)
  *   loadModel()    – hot-swaps the .nam model while running or suspended
  *   destroy()      – closes AudioContext for real (effect removed from board)
+ *
+ * Signal path:
+ *   [liveSrc] → gateAnalyser → gateGain → inputGain → inputMeter
+ *               → bypassNode ──────────────────────────────► outputGain
+ *               → workletNode (NAM) ────────────────────────► outputGain
+ *               outputGain → bass → mid → treble → outputMeter → [chain tail]
  */
 export class NamAudioGraph {
   private nodes: NamAudioNodes = { ...EMPTY_NAM_AUDIO_NODES }
   private initialized = false
   private initializing = false
   private modelUrl: string | null = null
+
+  // Noise-gate state
+  private gateActive = true
+  private gateThresholdDb = -80
+  private gateOpen = true
+  private gatePollHandle: number | null = null
 
   get isInitialized(): boolean {
     return this.initialized
@@ -42,7 +66,6 @@ export class NamAudioGraph {
         throw new Error('AudioWorklet is not supported in this browser')
       }
 
-      // The WASM module calls this global once — when setDsp creates the worklet.
       const audioReady = new Promise<void>((resolve, reject) => {
         const timeout = window.setTimeout(
           () => reject(new Error('NAM AudioWorklet failed to initialize')),
@@ -54,33 +77,56 @@ export class NamAudioGraph {
           this.nodes.audioWorkletNode = workletNode
           this.nodes.audioContext = context
 
+          // ── Input-side nodes ──
+          this.nodes.gateAnalyserNode = new AnalyserNode(context, { fftSize: 1024 })
+          this.nodes.gateGainNode = new GainNode(context, { gain: 1 })
           this.nodes.inputGainNode = new GainNode(context, { gain: 1 })
-          this.nodes.outputGainNode = new GainNode(context, { gain: 1 })
+          this.nodes.inputMeterNode = new AnalyserNode(context, { fftSize: 2048 })
           this.nodes.bypassNode = new GainNode(context, { gain: 0 })
 
-          const meterConfig = { fftSize: 2048 }
-          this.nodes.inputMeterNode = new AnalyserNode(context, meterConfig)
-          this.nodes.outputMeterNode = new AnalyserNode(context, meterConfig)
+          // ── Output-side nodes ──
+          this.nodes.outputGainNode = new GainNode(context, { gain: 1 })
+          this.nodes.bassNode = new BiquadFilterNode(context, {
+            type: 'lowshelf',
+            frequency: 250,
+            gain: 0,
+          })
+          this.nodes.midNode = new BiquadFilterNode(context, {
+            type: 'peaking',
+            frequency: 1000,
+            Q: 1,
+            gain: 0,
+          })
+          this.nodes.trebleNode = new BiquadFilterNode(context, {
+            type: 'highshelf',
+            frequency: 3500,
+            gain: 0,
+          })
+          this.nodes.outputMeterNode = new AnalyserNode(context, { fftSize: 2048 })
 
-          // Dummy media-element source required by the Emscripten graph setup.
+          // Dummy element source (Emscripten requirement; signal is silence).
           const audioElement = this.nodes.audioElement
-          if (!audioElement) {
-            throw new Error('Audio element missing during WASM callback')
-          }
+          if (!audioElement) throw new Error('Audio element missing during WASM callback')
           this.nodes.sourceNode = context.createMediaElementSource(audioElement)
 
-          const { sourceNode, inputGainNode, inputMeterNode, bypassNode, outputGainNode, outputMeterNode } = this.nodes
-
-          // Internal signal path (mic is connected later via connectInput):
-          // [liveSource] → inputGainNode → inputMeterNode ──► workletNode → outputGainNode → outputMeterNode → [tail, wired by SignalChain]
-          // bypassNode is a parallel path from inputMeterNode to outputGainNode (bypass when gain=1)
-          sourceNode.connect(inputGainNode!)
-          inputGainNode!.connect(inputMeterNode!)
-          inputMeterNode!.connect(bypassNode!)
-          bypassNode!.connect(outputGainNode!)
-          inputMeterNode!.connect(workletNode)
-          workletNode.connect(outputGainNode!)
-          outputGainNode!.connect(outputMeterNode!)
+          // Wire input side:
+          // dummy → gateGain (silent, so no effect)
+          this.nodes.sourceNode.connect(this.nodes.gateGainNode!)
+          // gate chain: [liveSrc] → gateAnalyser → gateGain → inputGain → inputMeter
+          this.nodes.gateAnalyserNode!.connect(this.nodes.gateGainNode!)
+          this.nodes.gateGainNode!.connect(this.nodes.inputGainNode!)
+          this.nodes.inputGainNode!.connect(this.nodes.inputMeterNode!)
+          // bypass path: inputMeter → bypass → outputGain
+          this.nodes.inputMeterNode!.connect(this.nodes.bypassNode!)
+          this.nodes.bypassNode!.connect(this.nodes.outputGainNode!)
+          // NAM path: inputMeter → worklet → outputGain
+          this.nodes.inputMeterNode!.connect(workletNode)
+          workletNode.connect(this.nodes.outputGainNode!)
+          // Wire output side: outputGain → bass → mid → treble → outputMeter
+          this.nodes.outputGainNode!.connect(this.nodes.bassNode!)
+          this.nodes.bassNode!.connect(this.nodes.midNode!)
+          this.nodes.midNode!.connect(this.nodes.trebleNode!)
+          this.nodes.trebleNode!.connect(this.nodes.outputMeterNode!)
 
           void context.resume()
           resolve()
@@ -89,23 +135,22 @@ export class NamAudioGraph {
 
       await loadWasmScript()
 
-      // A dummy audio element is needed so Emscripten can create a MediaElementSource.
-      // We never play it; the live mic replaces it as the actual signal source.
       const audio = new Audio()
       audio.crossOrigin = 'anonymous'
       audio.src = SILENT_WAV
       this.nodes.audioElement = audio
       await new Promise<void>((resolve, reject) => {
         audio.addEventListener('loadeddata', () => resolve(), { once: true })
-        audio.addEventListener('error', () => reject(new Error('Failed to load silent audio')), { once: true })
+        audio.addEventListener('error', () => reject(new Error('Failed to load silent audio')), {
+          once: true,
+        })
         audio.load()
       })
 
       await this.loadModelInternal(modelUrl)
       await audioReady
 
-      // Clear the one-time init callback so subsequent setDsp calls (hot-swap)
-      // don't re-run the init logic and corrupt the node graph.
+      // Clear one-time init callback.
       window.wasmAudioWorkletCreated = undefined
 
       this.initialized = true
@@ -122,7 +167,6 @@ export class NamAudioGraph {
 
   async connectInput(deviceId: string): Promise<void> {
     if (!this.isAudioReady()) throw new Error('NAM not initialized')
-
     this.disconnectInput()
 
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -136,20 +180,21 @@ export class NamAudioGraph {
 
     const context = this.nodes.audioContext!
     this.nodes.mediaStream = stream
+    // Connect: liveSource → gateAnalyser (the gate wires gateAnalyser → gateGain already)
     this.nodes.liveSourceNode = context.createMediaStreamSource(stream)
-    this.nodes.liveSourceNode.connect(this.nodes.inputGainNode!)
+    this.nodes.liveSourceNode.connect(this.nodes.gateAnalyserNode!)
 
     if (context.state === 'suspended') await context.resume()
+    this.startGatePoll()
   }
 
-  /** Disconnect the mic and suspend the AudioContext. The graph stays wired. */
   async suspend(): Promise<void> {
+    this.stopGatePoll()
     this.disconnectInput()
     const ctx = this.nodes.audioContext
     if (ctx && ctx.state === 'running') await ctx.suspend()
   }
 
-  /** Resume the AudioContext and re-attach the mic. */
   async resume(deviceId: string): Promise<void> {
     if (!this.isAudioReady()) throw new Error('NAM not initialized')
     await this.connectInput(deviceId)
@@ -164,27 +209,75 @@ export class NamAudioGraph {
     this.modelUrl = modelUrl
   }
 
-  // ─── Gain controls ───────────────────────────────────────────────────────
+  // ─── Gain controls ────────────────────────────────────────────────────────
 
-  /** Linear gain factor applied before the NAM model (0 = mute, 1 = unity). */
   setInputGain(gain: number): void {
     const node = this.nodes.inputGainNode
     if (!node || !this.nodes.audioContext) return
     node.gain.setTargetAtTime(gain, this.nodes.audioContext.currentTime, 0.005)
   }
 
-  /** Linear gain factor applied after the NAM model (0 = mute, 1 = unity). */
   setOutputLevel(gain: number): void {
     const node = this.nodes.outputGainNode
     if (!node || !this.nodes.audioContext) return
     node.gain.setTargetAtTime(gain, this.nodes.audioContext.currentTime, 0.005)
   }
 
+  // ─── Noise gate ───────────────────────────────────────────────────────────
+
+  setNoiseGateThreshold(db: number): void {
+    this.gateThresholdDb = db
+  }
+
+  setNoiseGateActive(active: boolean): void {
+    this.gateActive = active
+    if (!active) {
+      // Open gate immediately when disabled.
+      const ctx = this.nodes.audioContext
+      const gateGain = this.nodes.gateGainNode
+      if (ctx && gateGain) gateGain.gain.setTargetAtTime(1, ctx.currentTime, 0.002)
+      this.gateOpen = true
+    }
+  }
+
+  // ─── Tone stack ───────────────────────────────────────────────────────────
+
+  setBass(gainDb: number): void {
+    const node = this.nodes.bassNode
+    if (!node || !this.nodes.audioContext) return
+    node.gain.setTargetAtTime(gainDb, this.nodes.audioContext.currentTime, 0.005)
+  }
+
+  setMid(gainDb: number): void {
+    const node = this.nodes.midNode
+    if (!node || !this.nodes.audioContext) return
+    node.gain.setTargetAtTime(gainDb, this.nodes.audioContext.currentTime, 0.005)
+  }
+
+  setTreble(gainDb: number): void {
+    const node = this.nodes.trebleNode
+    if (!node || !this.nodes.audioContext) return
+    node.gain.setTargetAtTime(gainDb, this.nodes.audioContext.currentTime, 0.005)
+  }
+
+  setEqActive(active: boolean): void {
+    // Setting all filter gains to 0 makes them transparent (passthrough).
+    const gain = active ? undefined : 0
+    const ctx = this.nodes.audioContext
+    if (!ctx) return
+    const t = ctx.currentTime
+    if (gain === 0) {
+      this.nodes.bassNode?.gain.setTargetAtTime(0, t, 0.005)
+      this.nodes.midNode?.gain.setTargetAtTime(0, t, 0.005)
+      this.nodes.trebleNode?.gain.setTargetAtTime(0, t, 0.005)
+    }
+    // When re-enabling, callers must re-apply the knob values via setBass/Mid/Treble.
+  }
+
   // ─── Bypass ───────────────────────────────────────────────────────────────
 
   setBypass(bypassed: boolean): void {
     if (!this.isAudioReady()) return
-
     const { audioWorkletNode, audioContext, bypassNode, outputGainNode } = this.nodes
     if (!audioWorkletNode || !audioContext || !bypassNode || !outputGainNode) return
 
@@ -208,8 +301,8 @@ export class NamAudioGraph {
   }
 
   getChainInput(): globalThis.AudioNode {
-    if (!this.nodes.inputGainNode) throw new Error('NAM chain input is not ready')
-    return this.nodes.inputGainNode
+    if (!this.nodes.gateAnalyserNode) throw new Error('NAM chain input is not ready')
+    return this.nodes.gateAnalyserNode
   }
 
   getChainTail(): globalThis.AudioNode {
@@ -217,10 +310,11 @@ export class NamAudioGraph {
     return this.nodes.outputMeterNode
   }
 
-  // ─── Full teardown (effect removed) ──────────────────────────────────────
+  // ─── Full teardown ────────────────────────────────────────────────────────
 
   async destroy(): Promise<void> {
     window.wasmAudioWorkletCreated = undefined
+    this.stopGatePoll()
     this.disconnectInput()
 
     const { audioContext } = this.nodes
@@ -250,6 +344,51 @@ export class NamAudioGraph {
     }
   }
 
+  // ─── Noise gate polling ───────────────────────────────────────────────────
+
+  private startGatePoll(): void {
+    this.stopGatePoll()
+    this.gatePollHandle = window.setInterval(() => this.tickGate(), 16)
+  }
+
+  private stopGatePoll(): void {
+    if (this.gatePollHandle !== null) {
+      clearInterval(this.gatePollHandle)
+      this.gatePollHandle = null
+    }
+  }
+
+  private tickGate(): void {
+    // Gate is considered "off" when threshold is at the floor (−80 dB).
+    if (!this.gateActive || this.gateThresholdDb <= -80) {
+      if (!this.gateOpen) {
+        const ctx = this.nodes.audioContext
+        const gateGain = this.nodes.gateGainNode
+        if (ctx && gateGain) gateGain.gain.setTargetAtTime(1, ctx.currentTime, 0.002)
+        this.gateOpen = true
+      }
+      return
+    }
+    const { gateAnalyserNode, gateGainNode, audioContext } = this.nodes
+    if (!gateAnalyserNode || !gateGainNode || !audioContext) return
+
+    const buf = new Float32Array(gateAnalyserNode.fftSize)
+    gateAnalyserNode.getFloatTimeDomainData(buf)
+    let sum = 0
+    for (let i = 0; i < buf.length; i++) sum += buf[i]! * buf[i]!
+    const rmsDb = 20 * Math.log10(Math.max(Math.sqrt(sum / buf.length), 1e-10))
+
+    const shouldOpen = rmsDb > this.gateThresholdDb
+    if (shouldOpen === this.gateOpen) return
+
+    this.gateOpen = shouldOpen
+    const t = audioContext.currentTime
+    // Fast attack (1 ms), slower release (80 ms) to avoid click artefacts.
+    gateGainNode.gain.setTargetAtTime(shouldOpen ? 1 : 0, t, shouldOpen ? 0.001 : 0.08)
+  }
+
+  // ─── Model loading ────────────────────────────────────────────────────────
+
   private async loadModelInternal(modelUrl: string, forceA2Nano = false): Promise<void> {
     const response = await fetch(modelUrl)
     if (!response.ok) throw new Error(`Failed to fetch model: ${response.statusText}`)
@@ -272,10 +411,10 @@ export class NamAudioGraph {
         try {
           const ctx = this.nodes.audioContext
           if (ctx?.state === 'running') await ctx.suspend()
-
-          await module.ccall('setDsp', null, ['number', 'number'], [ptr, forceA2Nano ? 1 : 0], { async: true })
+          await module.ccall('setDsp', null, ['number', 'number'], [ptr, forceA2Nano ? 1 : 0], {
+            async: true,
+          })
           module._free(ptr)
-
           if (ctx?.state === 'suspended') await ctx.resume()
           return
         } catch (error) {

@@ -55,12 +55,27 @@ export const usePedalboardStore = defineStore('pedalboard', {
     },
     async updateNamParams(
       id: string,
-      params: Partial<{ inputGain: number; outputLevel: number }>,
+      params: Partial<{
+        inputGain: number
+        outputLevel: number
+        noiseGateThreshold: number
+        noiseGateActive: boolean
+        bass: number
+        mid: number
+        treble: number
+        eqActive: boolean
+      }>,
     ): Promise<void> {
       const node = this.nodes.find((n) => n.id === id)
       if (!node || node.type !== 'nam') return
       if (params.inputGain !== undefined) node.inputGain = params.inputGain
       if (params.outputLevel !== undefined) node.outputLevel = params.outputLevel
+      if (params.noiseGateThreshold !== undefined) node.noiseGateThreshold = params.noiseGateThreshold
+      if (params.noiseGateActive !== undefined) node.noiseGateActive = params.noiseGateActive
+      if (params.bass !== undefined) node.bass = params.bass
+      if (params.mid !== undefined) node.mid = params.mid
+      if (params.treble !== undefined) node.treble = params.treble
+      if (params.eqActive !== undefined) node.eqActive = params.eqActive
       await this.persist()
     },
     async updateIrParams(id: string, params: Partial<{ level: number }>): Promise<void> {

@@ -54,6 +54,12 @@ function onCanvasDrop(event: DragEvent) {
       model: null,
       inputGain: 50,
       outputLevel: 50,
+      noiseGateThreshold: 0,
+      noiseGateActive: true,
+      bass: 50,
+      mid: 50,
+      treble: 50,
+      eqActive: true,
     })
     return
   }
