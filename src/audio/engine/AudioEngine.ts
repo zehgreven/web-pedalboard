@@ -24,6 +24,11 @@ export class AudioEngine {
     await this.chain.stop()
   }
 
+  /** Full teardown — disconnects mic and closes all AudioContexts. */
+  async destroy(): Promise<void> {
+    await this.chain.destroy()
+  }
+
   get isRunning(): boolean {
     return this.chain.isRunning
   }

@@ -48,21 +48,14 @@ export function loadWasmModule(): Promise<NamWasmModule> {
   return cachedModulePromise
 }
 
-export function resetWasmModuleCache(): void {
-  cachedModulePromise = null
-}
-
-/** Full teardown so a subsequent Start can reload the WASM runtime cleanly. */
-export function resetWasmRuntime(): void {
-  resetWasmModuleCache()
-  wasmScriptLoaded = false
-  window.wasmAudioWorkletCreated = undefined
-  delete window.Module
-  document.querySelectorAll(`script[src="${WASM_SCRIPT_SRC}"]`).forEach((el) => el.remove())
-}
-
+/**
+ * Load the WASM script into the page.
+ * Called once per page load — safe to call multiple times (no-op after first).
+ * The module stays resident across Start/Stop cycles; only the AudioContext
+ * is torn down on Stop and re-created by the next setDsp call.
+ */
 export async function loadWasmScript(): Promise<void> {
-  if (wasmScriptLoaded && window.Module) return
+  if (wasmScriptLoaded) return
 
   await new Promise<void>((resolve, reject) => {
     const script = document.createElement('script')
