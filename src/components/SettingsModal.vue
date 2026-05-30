@@ -6,6 +6,8 @@ const emit = defineEmits<{ close: [] }>()
 
 const { folders, load, addFolder, removeFolder, requestPermission } = usePluginFolders()
 
+const isElectron = typeof window !== 'undefined' && !!window.electronAPI
+
 onMounted(load)
 
 function onBackdropClick(e: MouseEvent) {
@@ -59,24 +61,29 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
               :class="`folder-row--${folder.permission}`"
             >
               <span class="folder-row__icon" aria-hidden="true">📁</span>
-              <span class="folder-row__name">{{ folder.name }}</span>
-
-              <!-- Permission badge -->
-              <button
-                v-if="folder.permission !== 'granted'"
-                class="folder-row__badge folder-row__badge--warn"
-                :title="folder.permission === 'denied' ? 'Permission denied' : 'Click to re-grant access'"
-                @click="requestPermission(folder)"
-              >
-                {{ folder.permission === 'denied' ? 'denied' : 'grant access' }}
-              </button>
-              <span
-                v-else
-                class="folder-row__badge folder-row__badge--ok"
-                title="Access granted"
-              >
-                granted
+              <!-- In Electron, show full path; in browser show just name -->
+              <span class="folder-row__name" :title="folder.path ?? folder.name">
+                {{ folder.path ?? folder.name }}
               </span>
+
+              <!-- Permission badge — not shown in Electron (always granted via fs) -->
+              <template v-if="!isElectron">
+                <button
+                  v-if="folder.permission !== 'granted'"
+                  class="folder-row__badge folder-row__badge--warn"
+                  :title="folder.permission === 'denied' ? 'Permission denied' : 'Click to re-grant access'"
+                  @click="requestPermission(folder)"
+                >
+                  {{ folder.permission === 'denied' ? 'denied' : 'grant access' }}
+                </button>
+                <span
+                  v-else
+                  class="folder-row__badge folder-row__badge--ok"
+                  title="Access granted"
+                >
+                  granted
+                </span>
+              </template>
 
               <button
                 class="folder-row__remove"
@@ -89,9 +96,14 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           </div>
 
           <p class="setting-section__note">
-            ⚠ Browsers cannot load or execute native VST/VST3, LV2 or LADSPA binaries — estas
-            pastas são usadas apenas para referência e futura integração com um host local.
-            A permissão de leitura precisa ser re-concedida a cada visita.
+            <template v-if="isElectron">
+              As pastas são salvas permanentemente. Plugins listados na sidebar são identificados
+              por nome e formato — a execução nativa requer integração com host de plugins (futuro).
+            </template>
+            <template v-else>
+              ⚠ O browser não executa nativamente VST/VST3, LV2 ou LADSPA.
+              A permissão de leitura precisa ser re-concedida a cada visita do browser.
+            </template>
           </p>
         </section>
       </div>

@@ -75,6 +75,8 @@ const plugins = ref<FoundPlugin[]>([])
 const scanning = ref(false)
 const scanError = ref('')
 
+const isElectron = typeof window !== 'undefined' && !!window.electronAPI
+
 export function usePluginScanner() {
   const { folders } = usePluginFolders()
 
@@ -87,13 +89,20 @@ export function usePluginScanner() {
 
     scanning.value = true
     scanError.value = ''
-    const results: FoundPlugin[] = []
 
     try {
-      for (const folder of grantedFolders) {
-        await scanDir(folder.handle, '', 0, results)
+      if (isElectron) {
+        // Use Node.js fs via IPC — no permission dialogs needed.
+        const paths = grantedFolders.map((f) => f.path!).filter(Boolean)
+        plugins.value = await window.electronAPI.folders.scan(paths)
+      } else {
+        // Browser path: iterate FileSystemDirectoryHandle entries.
+        const results: FoundPlugin[] = []
+        for (const folder of grantedFolders) {
+          await scanDir(folder.handle!, '', 0, results)
+        }
+        plugins.value = results
       }
-      plugins.value = results
     } catch (e) {
       scanError.value = e instanceof Error ? e.message : 'Scan failed'
     } finally {
