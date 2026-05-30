@@ -31,6 +31,10 @@ export interface PersistedEffectNode {
   eqActive?: boolean
   /** IR only: output level (0–100, default 50). */
   level?: number
+  /** IR only: low-cut knob (0–100, default 0). */
+  lowCut?: number
+  /** IR only: high-cut knob (0–100, default 0). */
+  highCut?: number
 }
 
 /** Binary asset storage — swap this implementation for cloud sync later. */

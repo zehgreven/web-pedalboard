@@ -72,6 +72,8 @@ export class PedalboardAssetService {
           enabled: persisted.enabled,
           ir: asset,
           level: persisted.level ?? 50,
+          lowCut: persisted.lowCut ?? 0,
+          highCut: persisted.highCut ?? 0,
         })
       }
     }
@@ -118,7 +120,7 @@ export class PedalboardAssetService {
         eqActive: node.eqActive,
       }
     }
-    return { ...base, level: node.level }
+    return { ...base, level: node.level, lowCut: node.lowCut, highCut: node.highCut }
   }
 
   private revokeUrl(key: string): void {

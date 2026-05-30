@@ -98,6 +98,8 @@ export class SignalChain {
         if (ir) {
           ir.setBypass(!node.enabled)
           ir.setLevel(node.level / 50)
+          ir.setLowCut(node.lowCut)
+          ir.setHighCut(node.highCut)
           if (node.ir?.url) await ir.load(node.ir.url)
         }
       }
@@ -181,6 +183,8 @@ export class SignalChain {
         await ir.load(node.ir.url)
         ir.setBypass(!node.enabled)
         ir.setLevel(node.level / 50)
+        ir.setLowCut(node.lowCut)
+        ir.setHighCut(node.highCut)
         this.irLoaders.set(node.id, ir)
 
         const input = ir.getInput()

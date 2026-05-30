@@ -25,20 +25,56 @@ async function onFileChange(event: Event) {
   input.value = ''
 }
 
-function setLevel(value: number) {
-  store.updateIrParams(props.node.id, { level: value })
+function param(values: Parameters<typeof store.updateIrParams>[1]) {
+  store.updateIrParams(props.node.id, values)
+}
+
+// ─── Knob formatters ─────────────────────────────────────────────────────────
+
+function formatHz(hz: number): string {
+  return hz >= 1000 ? `${(hz / 1000).toFixed(1)} k` : `${Math.round(hz)}`
+}
+
+function formatLowCut(v: number): string {
+  if (v === 0) return 'off'
+  const freq = 20 * Math.pow(25, v / 100)
+  return formatHz(freq)
+}
+
+function formatHighCut(v: number): string {
+  if (v === 0) return 'off'
+  const freq = 20_000 * Math.pow(0.1, v / 100)
+  return formatHz(freq)
 }
 </script>
 
 <template>
   <div class="ir-loader">
-    <!-- Level knob -->
+    <!-- Knobs: Low Cut | Level | High Cut -->
     <div class="ir-loader__knobs">
       <KnobControl
         label="Level"
         :model-value="node.level"
         :default="50"
-        @update:model-value="setLevel"
+        @update:model-value="(v) => param({ level: v })"
+      />
+      <KnobControl
+        label="Lo Cut"
+        :model-value="node.lowCut"
+        :min="0"
+        :max="100"
+        :default="0"
+        :format-value="formatLowCut"
+        @update:model-value="(v) => param({ lowCut: v })"
+      />
+      <KnobControl
+        label="Hi Cut"
+        :model-value="node.highCut"
+        :min="0"
+        :max="100"
+        :default="0"
+        :format-value="formatHighCut"
+        @update:model-value="(v) => param({ highCut: v })"
       />
     </div>
 
@@ -82,8 +118,9 @@ function setLevel(value: number) {
 
 .ir-loader__knobs {
   display: flex;
+  gap: 12px;
   justify-content: center;
-  padding: 4px 0;
+  padding: 2px 0;
 }
 
 .ir-loader__file-row {

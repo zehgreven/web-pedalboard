@@ -78,10 +78,15 @@ export const usePedalboardStore = defineStore('pedalboard', {
       if (params.eqActive !== undefined) node.eqActive = params.eqActive
       await this.persist()
     },
-    async updateIrParams(id: string, params: Partial<{ level: number }>): Promise<void> {
+    async updateIrParams(
+      id: string,
+      params: Partial<{ level: number; lowCut: number; highCut: number }>,
+    ): Promise<void> {
       const node = this.nodes.find((n) => n.id === id)
       if (!node || node.type !== 'ir') return
       if (params.level !== undefined) node.level = params.level
+      if (params.lowCut !== undefined) node.lowCut = params.lowCut
+      if (params.highCut !== undefined) node.highCut = params.highCut
       await this.persist()
     },
     async moveNode(fromIndex: number, toIndex: number): Promise<void> {

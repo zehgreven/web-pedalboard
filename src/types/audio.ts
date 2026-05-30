@@ -43,6 +43,16 @@ export interface IrAudioNode extends BaseAudioNode {
   ir: IrFileRef | null
   /** Output level. 0–100 where 50 = unity (×1.0). Default: 50 */
   level: number
+  /**
+   * Low-cut (high-pass) filter. 0–100 where 0 = off (~20 Hz), 100 = ~500 Hz.
+   * Frequency mapped logarithmically. Default: 0 (off)
+   */
+  lowCut: number
+  /**
+   * High-cut (low-pass) filter. 0–100 where 0 = off (~20 kHz), 100 = ~2 kHz.
+   * Frequency mapped logarithmically. Default: 0 (off)
+   */
+  highCut: number
 }
 
 export type AudioNode = NamAudioNode | IrAudioNode

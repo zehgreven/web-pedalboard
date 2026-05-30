@@ -71,6 +71,8 @@ function onCanvasDrop(event: DragEvent) {
     enabled: true,
     ir: null,
     level: 50,
+    lowCut: 0,
+    highCut: 0,
   })
 }
 </script>
