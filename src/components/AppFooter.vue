@@ -62,12 +62,13 @@ async function toggleEngine(): Promise<void> {
   bottom: 0;
   left: 0;
   right: 0;
-  background: #1a1a1a;
-  border-top: 1px solid #333;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
   padding: 12px 24px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  transition: background 0.2s, border-color 0.2s;
 }
 
 .footer-controls {
@@ -80,14 +81,14 @@ async function toggleEngine(): Promise<void> {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #ccc;
+  color: var(--text-2);
   font-size: 14px;
 }
 
 .footer-field select {
-  background: #2a2a2a;
-  color: #fff;
-  border: 1px solid #444;
+  background: var(--bg-card);
+  color: var(--text-1);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 4px 8px;
   font-size: 14px;
@@ -102,23 +103,23 @@ async function toggleEngine(): Promise<void> {
   padding: 8px 24px;
   border: none;
   border-radius: 4px;
-  background: #3a3a3a;
-  color: #fff;
+  background: var(--border);
+  color: var(--text-1);
   font-size: 14px;
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .transport-btn.active {
-  background: #c0392b;
+  background: var(--danger);
 }
 
 .transport-btn:hover {
-  filter: brightness(1.2);
+  filter: brightness(1.15);
 }
 
 .footer-error {
-  color: #e74c3c;
+  color: var(--danger);
   font-size: 12px;
   margin: 0;
 }

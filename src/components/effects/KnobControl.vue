@@ -123,13 +123,13 @@ const displayValue = computed(() => {
       @dblclick="onDoubleClick"
     >
       <!-- Outer ring -->
-      <circle :cx="CX" :cy="CY" :r="R + STROKE / 2 + 1" fill="#1a1a1a" />
+      <circle :cx="CX" :cy="CY" :r="R + STROKE / 2 + 1" fill="var(--bg-surface)" />
 
       <!-- Full-range track -->
       <path
         :d="trackPath"
         fill="none"
-        stroke="#2e2e2e"
+        stroke="var(--border-faint)"
         :stroke-width="STROKE"
         stroke-linecap="round"
       />
@@ -139,16 +139,16 @@ const displayValue = computed(() => {
         v-if="valuePath"
         :d="valuePath"
         fill="none"
-        stroke="#e67e22"
+        stroke="var(--accent)"
         :stroke-width="STROKE"
         stroke-linecap="round"
       />
 
       <!-- Knob body -->
-      <circle :cx="CX" :cy="CY" :r="R - STROKE - 1" fill="#2a2a2a" />
+      <circle :cx="CX" :cy="CY" :r="R - STROKE - 1" fill="var(--bg-card)" />
 
       <!-- Indicator dot -->
-      <circle :cx="indicatorEnd.x" :cy="indicatorEnd.y" r="2" fill="#e67e22" />
+      <circle :cx="indicatorEnd.x" :cy="indicatorEnd.y" r="2" fill="var(--accent)" />
     </svg>
 
     <span class="knob__label">{{ label }}</span>
@@ -185,13 +185,13 @@ const displayValue = computed(() => {
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #888;
+  color: var(--text-3);
   text-align: center;
 }
 
 .knob__value {
   font-size: 10px;
-  color: #bbb;
+  color: var(--text-2);
   text-align: center;
   min-width: 32px;
 }

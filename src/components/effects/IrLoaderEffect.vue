@@ -148,9 +148,9 @@ function formatHighCut(v: number): string {
   justify-content: center;
   padding: 5px 10px;
   border-radius: 6px;
-  border: 1px solid #3a3a3a;
-  background: #1f1f1f;
-  color: #ddd;
+  border: 1px solid var(--border-sub);
+  background: var(--bg-input);
+  color: var(--text-2);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
@@ -160,9 +160,9 @@ function formatHighCut(v: number): string {
 .ir-loader__clear {
   padding: 5px 8px;
   border-radius: 6px;
-  border: 1px solid #3a3a3a;
+  border: 1px solid var(--border-sub);
   background: transparent;
-  color: #bbb;
+  color: var(--text-3);
   font-size: 11px;
   cursor: pointer;
   white-space: nowrap;
@@ -171,7 +171,7 @@ function formatHighCut(v: number): string {
 .ir-loader__name {
   margin: 0;
   font-size: 10px;
-  color: #aaa;
+  color: var(--text-2);
   word-break: break-all;
   text-align: center;
 }
@@ -179,13 +179,13 @@ function formatHighCut(v: number): string {
 .ir-loader__hint {
   margin: 0;
   font-size: 10px;
-  color: #555;
+  color: var(--text-4);
   text-align: center;
 }
 
 .ir-loader__error {
   margin: 0;
   font-size: 10px;
-  color: #e74c3c;
+  color: var(--danger);
 }
 </style>

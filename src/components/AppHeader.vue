@@ -1,7 +1,9 @@
 <script setup lang="ts">
-defineEmits<{
-  openSettings: []
-}>()
+import { useTheme } from '@/composables/useTheme'
+
+defineEmits<{ openSettings: [] }>()
+
+const { theme, toggleTheme } = useTheme()
 </script>
 
 <template>
@@ -12,6 +14,9 @@ defineEmits<{
     </div>
 
     <div class="app-header__actions">
+      <button class="btn btn--ghost btn--icon" :title="theme === 'dark' ? 'Switch to light' : 'Switch to dark'" @click="toggleTheme">
+        {{ theme === 'dark' ? '☀️' : '🌙' }}
+      </button>
       <button class="btn btn--ghost" @click="$emit('openSettings')">⚙ Settings</button>
     </div>
   </header>
@@ -24,13 +29,14 @@ defineEmits<{
   left: 0;
   right: 0;
   height: 56px;
-  background: #1a1a1a;
-  border-bottom: 1px solid #333;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
   z-index: 100;
+  transition: background 0.2s, border-color 0.2s;
 }
 
 .app-header__brand {
@@ -46,13 +52,14 @@ defineEmits<{
 .app-header__title {
   font-size: 16px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-1);
   letter-spacing: 0.3px;
 }
 
 .app-header__actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
+  align-items: center;
 }
 
 .btn {
@@ -65,12 +72,18 @@ defineEmits<{
 }
 
 .btn:hover {
-  filter: brightness(1.2);
+  filter: brightness(1.15);
 }
 
 .btn--ghost {
   background: transparent;
-  color: #ccc;
-  border: 1px solid #444;
+  color: var(--text-2);
+  border: 1px solid var(--border);
+}
+
+.btn--icon {
+  padding: 6px 10px;
+  font-size: 16px;
+  line-height: 1;
 }
 </style>

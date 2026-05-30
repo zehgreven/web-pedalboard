@@ -86,26 +86,26 @@ function onDrop(event: DragEvent) {
   bottom: 64px;
   left: 0;
   width: 240px;
-  background: #1e1e1e;
-  border-right: 1px solid #333;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   z-index: 90;
   overflow-y: auto;
-  transition: border-color 0.15s;
+  transition: background 0.2s, border-color 0.15s;
 }
 
 .add-effect-sidebar--drop-target {
-  border-right-color: #c0392b;
-  background: #1e1212;
+  border-right-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--bg-surface));
 }
 
 .add-effect-sidebar__header {
   padding: 16px;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border);
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-1);
 }
 
 .add-effect-sidebar__category {
@@ -117,14 +117,14 @@ function onDrop(event: DragEvent) {
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: #666;
+  color: var(--text-3);
   margin: 0 0 8px;
 }
 
 .add-effect-sidebar__item {
   width: 100%;
-  background: #2a2a2a;
-  border: 1px solid #383838;
+  background: var(--bg-card);
+  border: 1px solid var(--border-sub);
   border-radius: 6px;
   padding: 10px 12px;
   margin-bottom: 6px;
@@ -133,14 +133,11 @@ function onDrop(event: DragEvent) {
   flex-direction: column;
   gap: 3px;
   text-align: left;
-  transition:
-    border-color 0.15s,
-    background 0.15s;
+  transition: border-color 0.15s, background 0.15s;
   user-select: none;
 }
 
 .add-effect-sidebar__item:hover:not(.add-effect-sidebar__item--added) {
-  background: #333;
   border-color: #2e86de;
 }
 
@@ -152,12 +149,12 @@ function onDrop(event: DragEvent) {
 .add-effect-sidebar__item-label {
   font-size: 13px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-1);
 }
 
 .add-effect-sidebar__item-desc {
   font-size: 11px;
-  color: #777;
+  color: var(--text-3);
 }
 
 .add-effect-sidebar__drop-hint {
@@ -167,6 +164,6 @@ function onDrop(event: DragEvent) {
   right: 0;
   text-align: center;
   font-size: 12px;
-  color: #c0392b;
+  color: var(--danger);
 }
 </style>

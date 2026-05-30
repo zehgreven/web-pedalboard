@@ -124,14 +124,14 @@ function onCanvasDrop(event: DragEvent) {
   align-items: center;
   overflow-x: auto;
   overflow-y: hidden;
-  background: #111;
+  background: var(--bg-app);
   padding: 0 24px;
-  transition: background 0.15s;
+  transition: background 0.2s;
 }
 
 .pedalboard-canvas--drop-target {
-  background: #111d11;
-  outline: 2px dashed #27ae60;
+  background: color-mix(in srgb, var(--success) 8%, var(--bg-app));
+  outline: 2px dashed var(--success);
   outline-offset: -8px;
 }
 
@@ -145,20 +145,20 @@ function onCanvasDrop(event: DragEvent) {
 .pedalboard-canvas__anchor {
   font-size: 12px;
   font-weight: 700;
-  color: #888;
+  color: var(--text-3);
   letter-spacing: 1px;
   white-space: nowrap;
 }
 
 .pedalboard-canvas__arrow {
-  color: #555;
+  color: var(--text-4);
   font-size: 14px;
   white-space: nowrap;
 }
 
 .pedalboard-canvas__empty {
   font-size: 14px;
-  color: #555;
+  color: var(--text-4);
   padding: 0 32px;
   white-space: nowrap;
 }

@@ -57,6 +57,11 @@ function onDragStart(event: DragEvent) {
 </template>
 
 <style scoped>
+.effect-card--nam {
+  width: 260px;
+  min-width: 260px;
+}
+
 .effect-card--ir {
   width: 200px;
   min-width: 200px;
@@ -65,23 +70,16 @@ function onDragStart(event: DragEvent) {
 .effect-card {
   width: 160px;
   min-width: 160px;
-  background: #2a2a2a;
-  border: 1px solid #444;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 12px;
   cursor: grab;
-  transition:
-    opacity 0.2s,
-    border-color 0.2s;
+  transition: opacity 0.2s, border-color 0.2s, background 0.2s;
   user-select: none;
-}
-
-.effect-card--nam {
-  width: 200px;
-  min-width: 200px;
 }
 
 .effect-card--bypassed {
@@ -101,7 +99,7 @@ function onDragStart(event: DragEvent) {
 .effect-card__label {
   font-size: 13px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-1);
 }
 
 .effect-card__bypass {
@@ -111,21 +109,19 @@ function onDragStart(event: DragEvent) {
   border-radius: 3px;
   border: none;
   cursor: pointer;
-  background: #555;
-  color: #aaa;
-  transition:
-    background 0.15s,
-    color 0.15s;
+  background: var(--border);
+  color: var(--text-3);
+  transition: background 0.15s, color 0.15s;
 }
 
 .effect-card__bypass--on {
-  background: #27ae60;
+  background: var(--success);
   color: #fff;
 }
 
 .effect-card__body {
   font-size: 12px;
-  color: #888;
+  color: var(--text-3);
 }
 
 .effect-card__footer {
@@ -136,7 +132,7 @@ function onDragStart(event: DragEvent) {
 
 .effect-card__drag-handle {
   font-size: 12px;
-  color: #666;
+  color: var(--text-4);
 }
 
 .effect-card__remove {
