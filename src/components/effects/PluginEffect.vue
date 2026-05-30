@@ -1,14 +1,18 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import type { PluginAudioNode } from '@/types/audio'
+import PluginUIModal from '@/components/PluginUIModal.vue'
 
 defineProps<{ node: PluginAudioNode }>()
 
 const FORMAT_COLOR: Record<string, string> = {
-  vst3: '#2e86de',
-  vst:  '#8e44ad',
-  lv2:  '#27ae60',
+  vst3:   '#2e86de',
+  vst:    '#8e44ad',
+  lv2:    '#27ae60',
   ladspa: '#e67e22',
 }
+
+const modalOpen = ref(false)
 </script>
 
 <template>
@@ -19,8 +23,19 @@ const FORMAT_COLOR: Record<string, string> = {
     >
       {{ node.format.toUpperCase() }}
     </span>
+
     <p class="plugin-effect__name" :title="node.pluginPath">{{ node.pluginName }}</p>
-    <p class="plugin-effect__note">Native plugin — audio pass-through only</p>
+
+    <button class="plugin-effect__open-btn" @click.stop="modalOpen = true">
+      Open UI
+    </button>
+
+    <PluginUIModal
+      v-if="modalOpen"
+      :node="node"
+      :format-color="FORMAT_COLOR[node.format] ?? '#555'"
+      @close="modalOpen = false"
+    />
   </div>
 </template>
 
@@ -29,14 +44,14 @@ const FORMAT_COLOR: Record<string, string> = {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin-top: 6px;
   text-align: center;
 }
 
 .plugin-effect__badge {
   display: inline-block;
-  padding: 2px 8px;
+  padding: 2px 10px;
   border-radius: 10px;
   font-size: 9px;
   font-weight: 800;
@@ -50,12 +65,23 @@ const FORMAT_COLOR: Record<string, string> = {
   font-weight: 600;
   color: var(--text-1);
   word-break: break-word;
+  max-width: 150px;
 }
 
-.plugin-effect__note {
-  margin: 0;
-  font-size: 10px;
-  color: var(--text-4);
-  font-style: italic;
+.plugin-effect__open-btn {
+  padding: 4px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-sub);
+  background: var(--bg-card);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.plugin-effect__open-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 </style>
