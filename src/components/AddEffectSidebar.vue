@@ -55,6 +55,25 @@ const pluginsByFormat = computed(() => {
 
 const hasFoldersWithAccess = computed(() => folders.value.some((f) => f.permission === 'granted'))
 
+// ── Plugin filter ─────────────────────────────────────────────────────────────
+const filterQuery = ref('')
+
+const filteredPluginsByFormat = computed(() => {
+  const q = filterQuery.value.trim().toLowerCase()
+  return pluginsByFormat.value
+    .map((group) => ({
+      ...group,
+      items: q
+        ? group.items.filter((p) => p.name.toLowerCase().includes(q))
+        : group.items,
+    }))
+    .filter((group) => group.items.length > 0)
+})
+
+const filteredTotal = computed(() =>
+  filteredPluginsByFormat.value.reduce((n, g) => n + g.items.length, 0),
+)
+
 onMounted(async () => {
   await loadFolders()
   await scan()
@@ -80,6 +99,13 @@ function onDragOver(event: DragEvent) {
 
 function onDragLeave() {
   isDropTarget.value = false
+}
+
+/** Wraps the matching portion of a plugin name in a <mark> tag. */
+function highlight(name: string, query: string): string {
+  if (!query) return name
+  const q = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // escape regex
+  return name.replace(new RegExp(`(${q})`, 'gi'), '<mark>$1</mark>')
 }
 
 function onDrop(event: DragEvent) {
@@ -140,12 +166,39 @@ function onDrop(event: DragEvent) {
 
     <!-- Plugin list grouped by format -->
     <template v-else>
+      <!-- Search filter -->
+      <div class="sidebar__filter">
+        <span class="sidebar__filter-icon">⌕</span>
+        <input
+          v-model="filterQuery"
+          class="sidebar__filter-input"
+          type="search"
+          placeholder="Filter plugins…"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button
+          v-if="filterQuery"
+          class="sidebar__filter-clear"
+          title="Clear filter"
+          @click="filterQuery = ''"
+        >✕</button>
+      </div>
+
+      <!-- No results for current query -->
+      <p v-if="filterQuery && filteredTotal === 0" class="sidebar__hint">
+        No plugins match "{{ filterQuery }}".
+      </p>
+
       <div
-        v-for="group in pluginsByFormat"
+        v-for="group in filteredPluginsByFormat"
         :key="group.format"
         class="sidebar__group"
       >
-        <p class="sidebar__group-label">{{ group.label }}</p>
+        <p class="sidebar__group-label">
+          {{ group.label }}
+          <span class="sidebar__group-count">{{ group.items.length }}</span>
+        </p>
         <div
           v-for="plugin in group.items"
           :key="plugin.id"
@@ -155,7 +208,7 @@ function onDrop(event: DragEvent) {
           @dragstart="(e) => onPluginDragStart(e, plugin)"
         >
           <span class="sidebar__plugin-icon">⠿</span>
-          {{ plugin.name }}
+          <span class="sidebar__plugin-name" v-html="highlight(plugin.name, filterQuery)" />
         </div>
       </div>
     </template>
@@ -285,6 +338,81 @@ function onDrop(event: DragEvent) {
   font-size: 11px;
   color: var(--text-4);
   flex-shrink: 0;
+}
+
+/* ── Filter ── */
+.sidebar__filter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 8px 12px 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-sub);
+  border-radius: 6px;
+  padding: 4px 8px;
+  transition: border-color 0.15s;
+}
+
+.sidebar__filter:focus-within {
+  border-color: var(--accent);
+}
+
+.sidebar__filter-icon {
+  font-size: 14px;
+  color: var(--text-4);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.sidebar__filter-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 12px;
+  color: var(--text-1);
+  padding: 0;
+}
+
+.sidebar__filter-input::placeholder {
+  color: var(--text-4);
+}
+
+/* Remove default browser search cancel button */
+.sidebar__filter-input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.sidebar__filter-clear {
+  background: none;
+  border: none;
+  padding: 0 2px;
+  font-size: 10px;
+  color: var(--text-4);
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.sidebar__filter-clear:hover {
+  color: var(--text-1);
+}
+
+/* Highlight match */
+.sidebar__plugin-name :deep(mark) {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  color: inherit;
+  border-radius: 2px;
+}
+
+.sidebar__group-count {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-4);
+  margin-left: 4px;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 /* ── Hints & states ── */
