@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import type { PluginAudioNode } from '@/types/audio'
+import { useCarlaEngine } from '@/composables/useCarlaEngine'
 
 const props = defineProps<{
   node: PluginAudioNode
@@ -15,6 +16,13 @@ function onKeydown(e: KeyboardEvent) {
 }
 onMounted(() => window.addEventListener('keydown', onKeydown))
 onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+
+// ─── Carla integration ────────────────────────────────────────────────────────
+const { carlaStatus, fetchParams, setParam, carlaRackIndex } = useCarlaEngine()
+
+const isInCarlaChain = computed(
+  () => carlaStatus.value === 'running' && carlaRackIndex(props.node.id) >= 0,
+)
 
 // ─── Metadata loading ─────────────────────────────────────────────────────────
 const isElectron = !!window.electronAPI
@@ -49,31 +57,62 @@ function toParam(p: ElectronPluginParam): Param {
 }
 
 async function loadMetadata() {
+  loading.value   = true
+  loadError.value = ''
+
+  // Priority: if Carla is running and this plugin is in its rack → use live params
+  if (isInCarlaChain.value) {
+    try {
+      const carlaParams = await fetchParams(props.node.id)
+      if (carlaParams.length > 0) {
+        params.value    = carlaParams.map((p) => ({
+          id:      String(p.id),
+          label:   p.name || p.symbol,
+          value:   p.value,
+          default: p.default,
+          min:     p.min,
+          max:     p.max,
+          unit:    p.unit,
+        }))
+        hasRealParams.value = true
+        loading.value = false
+        return
+      }
+    } catch { /* fall through */ }
+  }
+
+  // Fallback: read params from file metadata (TTL / moduleinfo.json)
   if (!isElectron || !props.node.pluginPath) {
-    params.value = GENERIC_PARAMS.map((p) => ({ ...p }))
+    params.value        = GENERIC_PARAMS.map((p) => ({ ...p }))
+    hasRealParams.value = false
+    loading.value       = false
     return
   }
-  loading.value = true
-  loadError.value = ''
+
   try {
     const meta = await window.electronAPI!.plugin.metadata(props.node.pluginPath, props.node.format)
     if (meta && meta.params.length > 0) {
-      metaName.value = meta.name
+      metaName.value        = meta.name
       metaDescription.value = meta.description
-      params.value = meta.params.map(toParam)
-      hasRealParams.value = true
+      params.value          = meta.params.map(toParam)
+      hasRealParams.value   = true
     } else {
-      params.value = GENERIC_PARAMS.map((p) => ({ ...p }))
+      params.value        = GENERIC_PARAMS.map((p) => ({ ...p }))
       hasRealParams.value = false
     }
   } catch {
-    loadError.value = 'Could not read plugin metadata.'
-    params.value = GENERIC_PARAMS.map((p) => ({ ...p }))
+    loadError.value     = 'Could not read plugin metadata.'
+    params.value        = GENERIC_PARAMS.map((p) => ({ ...p }))
     hasRealParams.value = false
   } finally {
     loading.value = false
   }
 }
+
+// Reload params if Carla status changes (e.g. engine just started)
+watch(isInCarlaChain, (inChain) => {
+  if (inChain) loadMetadata()
+})
 
 onMounted(loadMetadata)
 
@@ -111,9 +150,28 @@ async function launchNativeUI() {
 // ─── Controls ─────────────────────────────────────────────────────────────────
 function resetParam(param: Param) {
   param.value = param.default
+  sendToCarla(param)
 }
+
 function resetAll() {
-  params.value.forEach((p) => (p.value = p.default))
+  params.value.forEach((p) => {
+    p.value = p.default
+    sendToCarla(p)
+  })
+}
+
+/** Send a parameter change to Carla in real-time (no-op if Carla is not running). */
+function sendToCarla(param: Param) {
+  if (!isInCarlaChain.value) return
+  const paramIdx = parseInt(param.id, 10)
+  if (!isNaN(paramIdx)) {
+    setParam(props.node.id, paramIdx, param.value)
+  }
+}
+
+/** Called by the range input's @input event for live updates. */
+function onSliderInput(param: Param) {
+  sendToCarla(param)
 }
 
 function formatValue(p: Param): string {
@@ -188,7 +246,7 @@ const FORMAT_LABEL: Record<string, string> = {
         <!-- Source badge (real metadata vs generic) -->
         <div v-else-if="!loading" class="plugin-modal__source">
           <span v-if="hasRealParams" class="plugin-modal__source-badge plugin-modal__source-badge--real">
-            ✓ Real parameters from plugin metadata
+            {{ isInCarlaChain ? '⚡ Live — controls sent to Carla in real-time' : '✓ Real parameters from plugin metadata' }}
           </span>
           <span v-else class="plugin-modal__source-badge plugin-modal__source-badge--generic">
             Generic controls (metadata not available for this format)
@@ -213,7 +271,9 @@ const FORMAT_LABEL: Record<string, string> = {
               :max="param.max"
               :step="(param.max - param.min) / 1000"
               class="plugin-modal__slider"
+              :class="{ 'plugin-modal__slider--live': isInCarlaChain }"
               :style="{ '--accent-color': formatColor }"
+              @input="onSliderInput(param)"
             />
           </div>
         </div>
@@ -473,6 +533,9 @@ const FORMAT_LABEL: Record<string, string> = {
   accent-color: var(--accent-color, var(--accent));
   height: 4px;
   cursor: pointer;
+}
+.plugin-modal__slider--live {
+  accent-color: var(--success);
 }
 
 /* ── Footer ── */

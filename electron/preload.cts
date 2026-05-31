@@ -62,6 +62,49 @@ contextBridge.exposeInMainWorld('electronAPI', {
         error?: string
       }>,
   },
+
+  carla: {
+    available: (): Promise<boolean> =>
+      ipcRenderer.invoke('carla:available'),
+
+    getLv2Uri: (bundlePath: string): Promise<string | null> =>
+      ipcRenderer.invoke('carla:get-lv2-uri', bundlePath),
+
+    status: (): Promise<{ status: string; error: string }> =>
+      ipcRenderer.invoke('carla:status'),
+
+    start: (
+      plugins: Array<{
+        pluginType: string; binary: string; name: string; label: string; uniqueId?: number
+      }>,
+      driver?: string,
+      device?: string,
+    ): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('carla:start', plugins, driver ?? 'JACK', device ?? ''),
+
+    stop: (): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('carla:stop'),
+
+    setParam: (pluginId: number, paramId: number, value: number): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('carla:set-param', pluginId, paramId, value),
+
+    setActive: (pluginId: number, active: boolean): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('carla:set-active', pluginId, active),
+
+    getParams: (pluginId: number): Promise<Array<{
+      id: number; name: string; symbol: string; unit: string
+      value: number; min: number; max: number; default: number
+    }>> =>
+      ipcRenderer.invoke('carla:get-params', pluginId),
+
+    onStatusChanged: (
+      cb: (payload: { status: string; error: string }) => void
+    ): (() => void) => {
+      const handler = (_: Electron.IpcRendererEvent, payload: { status: string; error: string }) => cb(payload)
+      ipcRenderer.on('carla:status-changed', handler)
+      return () => ipcRenderer.removeListener('carla:status-changed', handler)
+    },
+  },
 })
 
 export {}

@@ -6,6 +6,8 @@ import fs from 'node:fs'
 import fsPromises from 'node:fs/promises'
 import { execFile, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
+import { carlaHost } from './carla-host.cjs'
+import type { CarlaPluginSpec } from './carla-host.cjs'
 
 const execFileAsync = promisify(execFile)
 
@@ -454,6 +456,63 @@ ipcMain.handle('plugin:metadata', async (_event, pluginPath: string, format: str
 /** Launches the native plugin GUI via jalv / carla-single. */
 ipcMain.handle('plugin:open-native-ui', async (_event, pluginPath: string, format: string) =>
   openNativePluginUI(pluginPath, format)
+)
+
+// ─── Carla host IPC ───────────────────────────────────────────────────────────
+
+/** Returns whether Carla dependencies (Python + libcarla_standalone2.so) are present. */
+ipcMain.handle('carla:available', () => carlaHost.isAvailable())
+
+/** Returns the LV2 plugin URI from the bundle's manifest.ttl — used by Carla to load by URI. */
+ipcMain.handle('carla:get-lv2-uri', async (_event, bundlePath: string) =>
+  lv2Uri(bundlePath)
+)
+
+/** Returns current Carla status and last error. */
+ipcMain.handle('carla:status', () => ({
+  status: carlaHost.status,
+  error:  carlaHost.lastError,
+}))
+
+/**
+ * Starts Carla engine and loads the specified plugin chain.
+ * plugins[]: CarlaPluginSpec[]  — ordered list of plugins to load into Carla rack.
+ */
+ipcMain.handle('carla:start', async (
+  _event,
+  plugins: CarlaPluginSpec[],
+  driver = 'JACK',
+  device = '',
+) => {
+  // Forward status changes to the renderer window
+  carlaHost.onStatus((status, err) => {
+    const win = BrowserWindow.getAllWindows()[0]
+    win?.webContents.send('carla:status-changed', { status, error: err ?? '' })
+  })
+  return carlaHost.start(plugins, driver, device)
+})
+
+/** Stops Carla engine. */
+ipcMain.handle('carla:stop', async () => {
+  await carlaHost.stop()
+  return { ok: true }
+})
+
+/** Sets a plugin parameter value in the running Carla engine. */
+ipcMain.handle('carla:set-param', async (_event, pluginId: number, paramId: number, value: number) => {
+  await carlaHost.setParam(pluginId, paramId, value)
+  return { ok: true }
+})
+
+/** Enable/disable a plugin in the Carla rack. */
+ipcMain.handle('carla:set-active', async (_event, pluginId: number, active: boolean) => {
+  await carlaHost.setActive(pluginId, active)
+  return { ok: true }
+})
+
+/** Returns all readable parameters for a plugin in the Carla rack. */
+ipcMain.handle('carla:get-params', async (_event, pluginId: number) =>
+  carlaHost.getParams(pluginId)
 )
 
 /** Returns the currently saved plugin folder paths. */

@@ -57,6 +57,41 @@ interface ElectronAPI {
     metadata(pluginPath: string, format: string): Promise<ElectronPluginMetadata | null>
     openNativeUI(pluginPath: string, format: string): Promise<{ launched: boolean; tool: string; error?: string }>
   }
+
+  carla: {
+    available(): Promise<boolean>
+    getLv2Uri(bundlePath: string): Promise<string | null>
+    status(): Promise<{ status: string; error: string }>
+    start(
+      plugins: CarlaPluginSpec[],
+      driver?: string,
+      device?: string,
+    ): Promise<{ ok: boolean; error?: string }>
+    stop(): Promise<{ ok: boolean }>
+    setParam(pluginId: number, paramId: number, value: number): Promise<{ ok: boolean }>
+    setActive(pluginId: number, active: boolean): Promise<{ ok: boolean }>
+    getParams(pluginId: number): Promise<CarlaParam[]>
+    onStatusChanged(cb: (payload: { status: string; error: string }) => void): () => void
+  }
+}
+
+interface CarlaPluginSpec {
+  pluginType: string
+  binary: string
+  name: string
+  label: string
+  uniqueId?: number
+}
+
+interface CarlaParam {
+  id: number
+  name: string
+  symbol: string
+  unit: string
+  value: number
+  min: number
+  max: number
+  default: number
 }
 
 declare global {

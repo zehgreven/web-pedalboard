@@ -1,10 +1,58 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useAudioDevices } from '@/composables/useAudioDevices'
 import { useAudioEngine } from '@/composables/useAudioEngine'
+import { useCarlaEngine } from '@/composables/useCarlaEngine'
+import { usePedalboardStore } from '@/stores/pedalboard'
 
-const { inputDevices, outputDevices, selectedInput, selectedOutput, loadDevices } = useAudioDevices()
-const { start, stop, isRunning } = useAudioEngine()
+const { inputDevices, outputDevices, selectedInput, selectedOutput, loadDevices } =
+  useAudioDevices()
+
+const { start: startWebAudio, stop: stopWebAudio, isRunning: webAudioRunning } =
+  useAudioEngine()
+
+const { carlaAvailable, carlaStatus, carlaError, startCarla, stopCarla } =
+  useCarlaEngine()
+
+const store = usePedalboardStore()
+const { nodes } = storeToRefs(store)
+
+// ── Mode detection ────────────────────────────────────────────────────────────
+
+/** True when there is at least one enabled native plugin in the chain. */
+const hasNativePlugins = computed(() =>
+  nodes.value.some((n) => n.type === 'plugin' && n.enabled),
+)
+
+/**
+ * In Electron with native plugins: use Carla.
+ * Otherwise: use Web Audio.
+ */
+const carlaMode = computed(
+  () => hasNativePlugins.value && carlaAvailable.value,
+)
+
+const isRunning = computed(() =>
+  carlaMode.value
+    ? carlaStatus.value === 'running' || carlaStatus.value === 'starting'
+    : webAudioRunning.value,
+)
+
+// ── Status label ──────────────────────────────────────────────────────────────
+
+const engineLabel = computed(() => {
+  if (!carlaMode.value) return null
+  switch (carlaStatus.value) {
+    case 'starting':   return '⏳ Starting Carla…'
+    case 'running':    return '🎛 Carla (JACK)'
+    case 'error':      return `⚠ Carla error`
+    case 'stopped':    return null
+    case 'unavailable': return null
+  }
+})
+
+// ── Transport ─────────────────────────────────────────────────────────────────
 
 const error = ref('')
 
@@ -16,12 +64,23 @@ async function toggleEngine(): Promise<void> {
   error.value = ''
   try {
     if (isRunning.value) {
-      await stop()
+      // Stop both engines regardless of current mode
+      if (carlaMode.value) await stopCarla()
+      if (webAudioRunning.value) await stopWebAudio()
     } else {
-      await start(selectedInput.value, selectedOutput.value)
+      if (carlaMode.value) {
+        // Stop Web Audio first (can't share mic with two consumers easily)
+        if (webAudioRunning.value) await stopWebAudio()
+        const result = await startCarla(nodes.value)
+        if (!result.ok) {
+          error.value = result.error ?? 'Carla failed to start'
+        }
+      } else {
+        await startWebAudio(selectedInput.value, selectedOutput.value)
+      }
     }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Unknown error'
+    error.value = e instanceof Error ? e.message : String(e)
   }
 }
 </script>
@@ -47,12 +106,35 @@ async function toggleEngine(): Promise<void> {
         </select>
       </label>
 
-      <button class="transport-btn" :class="{ active: isRunning }" @click="toggleEngine">
+      <!-- Carla mode indicator -->
+      <span v-if="engineLabel" class="footer-engine-badge" :class="{ 'footer-engine-badge--error': carlaStatus === 'error' }">
+        {{ engineLabel }}
+      </span>
+      <span v-else-if="carlaMode" class="footer-engine-badge footer-engine-badge--idle">
+        🎛 Carla mode
+      </span>
+
+      <button
+        class="transport-btn"
+        :class="{
+          active: isRunning,
+          'transport-btn--starting': carlaStatus === 'starting',
+        }"
+        :disabled="carlaStatus === 'starting'"
+        @click="toggleEngine"
+      >
+        <span v-if="carlaStatus === 'starting'" class="transport-spinner" />
         {{ isRunning ? '⏹ Stop' : '▶ Start' }}
       </button>
     </div>
 
-    <p v-if="error" class="footer-error">{{ error }}</p>
+    <p v-if="error || (carlaStatus === 'error' && carlaError)" class="footer-error">
+      {{ error || carlaError }}
+    </p>
+
+    <p v-if="carlaMode && !isRunning" class="footer-hint">
+      Native plugins detected — audio will be routed through Carla (JACK/PipeWire)
+    </p>
   </footer>
 </template>
 
@@ -94,8 +176,22 @@ async function toggleEngine(): Promise<void> {
   font-size: 14px;
 }
 
-.footer-field select:disabled {
-  opacity: 0.5;
+.footer-field select:disabled { opacity: 0.5; }
+
+.footer-engine-badge {
+  font-size: 12px;
+  color: var(--text-3);
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-faint);
+}
+.footer-engine-badge--error {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.footer-engine-badge--idle {
+  color: var(--text-4);
 }
 
 .transport-btn {
@@ -108,19 +204,35 @@ async function toggleEngine(): Promise<void> {
   font-size: 14px;
   cursor: pointer;
   transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.transport-btn.active {
-  background: var(--danger);
-}
+.transport-btn.active  { background: var(--danger); }
+.transport-btn:hover:not(:disabled) { filter: brightness(1.15); }
+.transport-btn:disabled { opacity: 0.6; cursor: wait; }
 
-.transport-btn:hover {
-  filter: brightness(1.15);
+.transport-spinner {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
 }
+@keyframes spin { to { transform: rotate(360deg) } }
 
 .footer-error {
   color: var(--danger);
   font-size: 12px;
   margin: 0;
+}
+
+.footer-hint {
+  font-size: 11px;
+  color: var(--text-4);
+  margin: 0;
+  font-style: italic;
 }
 </style>
